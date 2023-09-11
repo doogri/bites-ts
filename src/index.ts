@@ -3,6 +3,14 @@ import { extractArticle } from './lib/crawl.js';
 import { htmlToListOfParagraphs } from './lib/htmlToText.js';
 import app from './lib/rest.js';
 
+//import { RateLimiter } from "limiter";
+import pkg from 'limiter';
+//const { RateLimiter } = pkg;
+
+// todo - per chatId?
+const limiter = new pkg.RateLimiter({ tokensPerInterval: 20, interval: "second" });
+
+
 
 
 // replace the value below with the Telegram token you receive from @BotFather
@@ -54,6 +62,7 @@ bot.on('message', (msg: Message) => {
         
         const paragraphs = htmlToListOfParagraphs(res.content);
         for (const p of paragraphs) {
+            const remainingRequests = await limiter.removeTokens(1);
             await bot.sendMessage(chatId, p);
         }
     });
