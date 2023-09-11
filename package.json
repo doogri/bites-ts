@@ -1,0 +1,29 @@
+{
+  "name": "ideas-ts",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "ts-node src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/crawler": "^1.2.3",
+    "@types/node": "^20.6.0",
+    "@types/node-telegram-bot-api": "^0.61.7",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "@extractus/article-extractor": "^8.0.2",
+    "@types/html-to-text": "^9.0.1",
+    "crawler": "^1.4.0",
+    "html-to-text": "^9.0.5",
+    "node-telegram-bot-api": "^0.61.0",
+    "openai": "^4.6.0",
+    "ts-node": "^10.9.1"
+  },
+  "type": "module"
+}
