@@ -1,6 +1,7 @@
 import TelegramBot, { Message } from 'node-telegram-bot-api';
 import { extractArticle } from './lib/crawl.js';
 import { htmlToListOfParagraphs } from './lib/htmlToText.js';
+import app from './lib/rest.js';
 
 
 
@@ -60,3 +61,8 @@ bot.on('message', (msg: Message) => {
 
 
 console.log('Bot is running');
+
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+  });
