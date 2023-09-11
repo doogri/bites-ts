@@ -2,6 +2,7 @@ import TelegramBot, { Message } from 'node-telegram-bot-api';
 import { extractArticle } from './lib/crawl.js';
 import { htmlToListOfParagraphs } from './lib/htmlToText.js';
 import app from './lib/rest.js';
+import { sleep } from './lib/utils.js';
 
 
 
@@ -54,6 +55,7 @@ bot.on('message', (msg: Message) => {
         
         const paragraphs = htmlToListOfParagraphs(res.content);
         for (const p of paragraphs) {
+            await sleep(50);
             await bot.sendMessage(chatId, p);
         }
     });
