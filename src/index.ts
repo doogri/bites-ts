@@ -1,4 +1,4 @@
-import TelegramBot, { Message } from 'node-telegram-bot-api';
+import TelegramBot, { Message, WebHookOptions } from 'node-telegram-bot-api';
 import { extractArticle } from './lib/crawl.js';
 import { htmlToListOfParagraphs } from './lib/htmlToText.js';
 import app from './lib/rest.js';
@@ -9,8 +9,19 @@ import { sleep } from './lib/utils.js';
 // replace the value below with the Telegram token you receive from @BotFather
 const botToken = process.env["TELEGRAM_BOT_TOKEN"] || '';
 
+const who: WebHookOptions  = {
+    host: 'https://fair-pear-seal-kilt.cyclic.app',// string | undefined;
+    port: 443,// number | undefined;
+    key: 'new-messsage',// string | undefined;
+    //cert: ,// string | undefined;
+    //pfx: ,// string | undefined;
+    //autoOpen: ,// boolean | undefined;
+    //https: ,// ServerOptions | undefined;
+    //healthEndpoint: ,// string | undefined;
+}
+
 // Create a bot that uses 'polling' to fetch new updates
-const bot = new TelegramBot(botToken, { polling: true });
+const bot = new TelegramBot(botToken, { webHook: who });
 
 bot.onText(/\/start/, (msg: Message, match) => {
     // 'msg' is the received Message from Telegram

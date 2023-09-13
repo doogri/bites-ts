@@ -16,6 +16,11 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'healthy' });
 });
 
+app.post('/new-messsage', (req, res) => {
+    console.log(`new-messsage: ${JSON.stringify(req.query)}`);
+    res.status(200).send('ok');
+});
+
 // Route for favicon.ico (you can provide a favicon file)
 app.get('/favicon.ico', (req, res) => {
   // Replace 'favicon.ico' with the path to your favicon file
