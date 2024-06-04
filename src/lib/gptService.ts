@@ -1,8 +1,14 @@
 import OpenAI from 'openai';
+import dotenv from 'dotenv';
 
+
+dotenv.config({ 
+    path: '.env'
+});
 
 const openai = new OpenAI({
  // api key defaults to process.env["OPENAI_API_KEY"]
+  apiKey: process.env["OPENAI_API_KEY"]
 });
 
 export async function callGpt(prompt: string) {
