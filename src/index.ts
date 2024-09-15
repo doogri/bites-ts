@@ -3,7 +3,12 @@ import { extractArticle } from './lib/crawl.js';
 import { htmlToListOfParagraphs } from './lib/htmlToText.js';
 import app from './lib/rest.js';
 import { sleep } from './lib/utils.js';
+import dotenv from 'dotenv';
 
+
+dotenv.config({ 
+    path: '.env'
+});
 
 
 try {
