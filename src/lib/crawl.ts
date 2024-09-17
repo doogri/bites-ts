@@ -15,7 +15,7 @@ function crawl(link: string) {
                 // $ is Cheerio by default
                 //a lean implementation of core jQuery designed specifically for the server
                 console.log($('title').text());
-                console.log(res.body);
+                //console.log(res.body);
             }
             done();
         }

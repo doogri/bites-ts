@@ -32,17 +32,11 @@ async function initTelegramBotManager() {
         host: 'https://fair-pear-seal-kilt.cyclic.app',
         port: 443,
         key: 'new-messsage', // string | undefined;
-        //cert: ,// string | undefined;
-        //pfx: ,// string | undefined;
-        //autoOpen: ,// boolean | undefined;
-        //https: ,// ServerOptions | undefined;
-        //healthEndpoint: ,// string | undefined;
     };
 
-    // Create a bot that uses 'polling' to fetch new updates
-    const bot = new TelegramBot(botToken);//, { webHook: who });
+    const bot = new TelegramBot(botToken, { polling: true });//, { webHook: who });
 
-    await bot.setWebHook(`${who.host}/${who.key}`);
+    //await bot.setWebHook(`${who.host}/${who.key}`);
 
     bot.onText(/\/start/, (msg: Message, match) => {
         // 'msg' is the received Message from Telegram
