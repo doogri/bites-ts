@@ -41,7 +41,7 @@ export async function extractArticle(input: string): Promise<{ content?: string,
 
     try {
         const article = await extract(input);
-        console.log(`article after extraction: ${JSON.stringify(article)} `);
+        //console.log(`article after extraction: ${JSON.stringify(article)} `);
         return  { content: article?.content, title: article?.title };
     } catch (err) {
         console.error(`failed to extract article. error: ${err}`);
