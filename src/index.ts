@@ -56,7 +56,7 @@ async function initTelegramBotManager() {
         console.error('telegram bot error: ' + error);
     });
 
-    bot.on('message', (msg: Message) => {
+    bot.on('message', async (msg: Message) => {
         const chatId = msg.chat.id;
         console.log(JSON.stringify(msg));
 
@@ -72,22 +72,25 @@ async function initTelegramBotManager() {
         }
         bot.sendMessage(chatId, 'reading... better you get out now');
 
-
-        extractArticle(msg.text!).then(async (res) => {
-            if (!res || !res.content || !res.title) {
-                bot.sendMessage(chatId, 'no response');
-                return;
-            }
-
-            // https://core.telegram.org/bots/api#html-style
-            const titleMsg = await bot.sendMessage(chatId, `*${res.title}*`, { parse_mode: 'MarkdownV2' });
-            await bot.pinChatMessage(chatId, titleMsg.message_id);
-
-            const paragraphs = htmlToListOfParagraphs(res.content);
-            for (const p of paragraphs) {
-                await sleep(50);
-                await bot.sendMessage(chatId, p);
-            }
-        });
+        const article = await extractArticle(msg.text!);
+        await sendBackArticle(bot, chatId, article);
     });
 }
+
+async function sendBackArticle(bot: TelegramBot, chatId: number, article: void | { content?: string; title?: string; }){
+        if (!article || !article.content || !article.title) {
+            bot.sendMessage(chatId, 'no response');
+            return;
+        }
+
+        // https://core.telegram.org/bots/api#html-style
+        const titleMsg = await bot.sendMessage(chatId, `*${article.title}*`, { parse_mode: 'MarkdownV2' });
+        await bot.pinChatMessage(chatId, titleMsg.message_id);
+
+        const paragraphs = htmlToListOfParagraphs(article.content);
+        for (const p of paragraphs) {
+            await sleep(50);
+            await bot.sendMessage(chatId, p);
+        }
+}
+
