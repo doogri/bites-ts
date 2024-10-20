@@ -2,7 +2,7 @@ import { convert }  from 'html-to-text';
 // There is also an alias to `convert` called `htmlToText`.
 
 const options = {
-  wordwrap: 130,
+  wordwrap: null,
   // ...
 };
 
