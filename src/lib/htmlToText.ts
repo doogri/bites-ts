@@ -8,6 +8,6 @@ const options = {
 
 export function htmlToListOfParagraphs(html: string) {
     const text = convert(html, options);
-    const paragraphs = text.split('\n');
+    const paragraphs = text.split('\n\n');
     return paragraphs.map(p => p.trim()).filter(p => p.length > 0);
 }
