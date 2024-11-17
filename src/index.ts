@@ -77,20 +77,34 @@ async function initTelegramBotManager() {
     });
 }
 
-async function sendBackArticle(bot: TelegramBot, chatId: number, article: void | { content?: string; title?: string; }){
-        if (!article || !article.content || !article.title) {
-            bot.sendMessage(chatId, 'no response');
-            return;
-        }
+// https://stackoverflow.com/a/76933672
+function escapeMarkdown(text: string): string {
+    return text.replace(/[_*[\]()~`>#\+\-=|{}.!]/g, '\\$&'); 
+}
 
+async function sendBackArticle(bot: TelegramBot, chatId: number, article: void | { content?: string; title?: string; }){  
+    if (!article || !article.content || !article.title) {
+        bot.sendMessage(chatId, 'no response');
+        return;
+    }
+    
+    try {
         // https://core.telegram.org/bots/api#html-style
-        const titleMsg = await bot.sendMessage(chatId, `*${article.title}*`, { parse_mode: 'MarkdownV2' });
+        const options: TelegramBot.SendMessageOptions = { parse_mode: 'MarkdownV2' };
+        
+        const titleEscaped = escapeMarkdown(article.title);
+        const titleMsg = await bot.sendMessage(chatId, `*${titleEscaped}*`, options);
         await bot.pinChatMessage(chatId, titleMsg.message_id);
-
+        
         const paragraphs = htmlToListOfParagraphs(article.content);
         for (const p of paragraphs) {
             await sleep(50);
             await bot.sendMessage(chatId, p);
         }
+        
+    } catch (error) {
+        console.log(`failed to send messages to telegram: ${error}`);
+        await bot.sendMessage(chatId, 'Error in sending back to Telegram. See logs');
+    }       
 }
 
