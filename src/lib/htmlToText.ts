@@ -1,5 +1,4 @@
 import { convert }  from 'html-to-text';
-import { writeParagraphesIntoTempFileWithLineSpace, writeTextIntoTempFileWithLineSpace } from '../tests/manualTestHtmlConvert.js';
 // There is also an alias to `convert` called `htmlToText`.
 
 const MAX_LENGTH = 1000;
@@ -11,12 +10,7 @@ const options = {
 
 export function htmlToListOfParagraphs(html: string) {
   const text = convert(html, options);
-  
-  
-  //writeTextIntoTempFileWithLineSpace(text); return divideTextIntoParagraphs(text);
-  
-  
-    return fromTextToParagraphes(text);
+  return fromTextToParagraphes(text);
 }
 
 export function fromTextToParagraphes(text: string) {
@@ -38,9 +32,7 @@ function divideTextIntoParagraphs(text: string): string[] {
 
   // Split the text into sentences
   const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
-
-  writeParagraphesIntoTempFileWithLineSpace(sentences, '/tmp/temp-sentences.txt');
-
+  
   // Divide sentences into paragraphs of 5 sentences each
   const paragraphs: string[] = [];
   for (let i = 0; i < sentences.length; i += 5) {
