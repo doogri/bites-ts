@@ -1,5 +1,5 @@
 import TelegramBot, { Message } from "node-telegram-bot-api";
-import PdfParse from "pdf-parse"
+import PdfParse from "pdf-parse-debugging-disabled"
 
 export async function extractFromPdf(msg: Message, bot: TelegramBot, botToken: string): Promise<string>{
     if (!msg.document){

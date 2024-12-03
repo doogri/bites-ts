@@ -20,14 +20,13 @@
   "dependencies": {
     "@extractus/article-extractor": "^8.0.2",
     "@types/html-to-text": "^9.0.1",
-    "@types/pdf-parse": "^1.1.4",
     "crawler": "^1.4.0",
     "dotenv": "^16.4.5",
     "express": "^4.18.2",
     "html-to-text": "^9.0.5",
     "node-telegram-bot-api": "^0.61.0",
     "openai": "^4.6.0",
-    "pdf-parse": "^1.1.1",
+    "pdf-parse-debugging-disabled": "^1.1.1",
     "ts-node": "^10.9.1"
   },
   "type": "module"
