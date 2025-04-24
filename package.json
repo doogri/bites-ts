@@ -5,7 +5,7 @@
   "main": "index.ts",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "npm run migration:run && node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "typeorm": "typeorm-ts-node-commonjs",
     "migration:generate": "tsc && npm run typeorm migration:generate -- -d  ./dist/lib/data-source.js",
