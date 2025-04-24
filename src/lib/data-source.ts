@@ -9,7 +9,6 @@ dotenv.config({
 export const AppDataSource = new DataSource({
   type: 'postgres',
   url: process.env['DATABASE_URL'],
-  database: 'db_bot_bites',
   synchronize: process.env.NODE_ENV === 'development',
   logging: false,
   entities: ['dist/lib/db/entity/**/*.js'],
