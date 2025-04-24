@@ -1,10 +1,14 @@
-import TelegramBot, { Message, WebHookOptions } from 'node-telegram-bot-api';
+import TelegramBot, { CallbackQuery, Message, WebHookOptions } from 'node-telegram-bot-api';
 import { extractArticle } from './lib/crawl.js';
 import { fromTextToParagraphes, htmlToListOfParagraphs } from './lib/htmlToText.js';
 import app from './lib/rest.js';
 import { sleep } from './lib/utils.js';
 import dotenv from 'dotenv';
 import { extractFromPdf } from './lib/pdfExtractor.js';
+import { AppDataSource } from './lib/data-source.js';
+import * as linksBot from './lib/linksBot.js';
+import { sendSuggestions } from './lib/suggestions.js';
+import { Link } from './lib/db/entity/Link.js';
 
 
 dotenv.config({ 
@@ -12,14 +16,22 @@ dotenv.config({
 });
 
 
+AppDataSource.initialize()
+    .then(() => {
+        console.log('Data Source has been initialized!');
+        
+    })
+    .catch((err) => {
+        console.error('Error during Data Source initialization', err);
+    });
+
 try {
     await initTelegramBotManager();
+    await linksBot.initTelegramBotManager()
     console.log('Bot is running');
 } catch (error) {
     console.error('failed to init telegram bot. error: ' + error);    
 }
-
-
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
@@ -61,6 +73,8 @@ async function initTelegramBotManager() {
         const chatId = msg.chat.id;
         console.log(JSON.stringify(msg));
 
+        const user = msg.from;
+
         if (msg.from?.is_bot) {
             console.log(`message from bot. ignoring.`);          
             return;
@@ -82,8 +96,44 @@ async function initTelegramBotManager() {
         else {
             const article = await extractArticle(msg.text!);
             await sendBackArticle(bot, chatId, article);
+            if (user) {
+                await sendSuggestions(bot, chatId, user);
+            }
         }
     });
+
+    bot.on('callback_query', async (callbackQuery: CallbackQuery) => {
+        const message = callbackQuery.message;
+        const data = callbackQuery.data;
+        const user = callbackQuery.from;
+      
+        if (!message || !data){
+            return;
+        }
+
+        bot.sendMessage(message.chat.id, 'reading... better you get out now');
+
+             
+        const linkRepository = AppDataSource.getRepository(Link);
+        const linkRecord = await linkRepository.findOneBy({ id: data });
+        if (!linkRecord){
+            return;
+        }
+        const link = linkRecord.link;
+        console.log('the link: ' + link);
+        
+        const article = await extractArticle(link);
+        await sendBackArticle(bot, message.chat.id, article);
+        
+        linkRecord.sent = true;
+        await linkRepository.save(linkRecord);
+
+        if (user) {
+            await sendSuggestions(bot, message.chat.id, user);
+        }
+
+        //bot.sendMessage(message.chat.id, `You selected: ${data}`);
+      });
 }
 
 // https://stackoverflow.com/a/76933672
@@ -100,13 +150,13 @@ async function sendBackArticle(bot: TelegramBot, chatId: number, article: void |
     try {
         const title = article.title;
         const paragraphs = htmlToListOfParagraphs(article.content);
-        sendBack(title, paragraphs, bot, chatId);
+        await sendBack(title, paragraphs, bot, chatId);
        
         
     } catch (error) {
         console.log(`failed to prepare messages to telegram: ${error}`);
         await bot.sendMessage(chatId, 'Error in prepare messages to Telegram. See logs');
-    }       
+    }
 }
 
 async function sendBack(title: string, paragraphs: string[], bot: TelegramBot, chatId: number) {

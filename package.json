@@ -6,16 +6,19 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "typeorm": "typeorm-ts-node-commonjs",
+    "migration:generate": "tsc && npm run typeorm migration:generate -- -d  ./dist/lib/data-source.js",
+    "migration:run": "tsc && npm run typeorm migration:run -- -d ./dist/lib/data-source.js"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "@types/crawler": "^1.2.3",
     "@types/express": "^4.17.17",
-    "@types/node": "^20.6.0",
+    "@types/node": "^20.17.30",
     "@types/node-telegram-bot-api": "^0.61.7",
-    "typescript": "^5.2.2"
+    "typescript": "^5.8.3"
   },
   "dependencies": {
     "@extractus/article-extractor": "^8.0.2",
@@ -27,7 +30,10 @@
     "node-telegram-bot-api": "^0.61.0",
     "openai": "^4.6.0",
     "pdf-parse-debugging-disabled": "^1.1.1",
-    "ts-node": "^10.9.1"
+    "pg": "^8.14.1",
+    "reflect-metadata": "^0.2.2",
+    "ts-node": "^10.9.1",
+    "typeorm": "^0.3.22"
   },
   "type": "module"
 }
