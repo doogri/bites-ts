@@ -8,10 +8,7 @@ dotenv.config({
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
-  host: 'localhost',
-  port: process.env['POSTGRES_PORT'] ? +process.env['POSTGRES_PORT'] : 5432,
-  username: process.env['POSTGRES_USERNAME'],
-  password: process.env['POSTGRES_PASSWORD'],
+  url: process.env['DATABASE_URL'],
   database: 'db_bot_bites',
   synchronize: process.env.NODE_ENV === 'development',
   logging: false,
