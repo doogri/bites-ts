@@ -72,9 +72,10 @@ export async function initTelegramBotManager() {
             bot.sendMessage(chatId, 'I cannot know you. bye');
             return;
         }
-        
+        const validLink = validateLink(msg.text);
+                
         const link = new Link();
-        link.link = msg.text;
+        link.link = validLink;
         link.userId = user.id;
 
         const linkRepository = AppDataSource.getRepository(Link);
@@ -85,4 +86,12 @@ export async function initTelegramBotManager() {
 
         bot.sendMessage(chatId, 'link was stored successfully');
     });
+}
+
+const max_size_link = 999;
+function validateLink(link: string): string {
+    if (link.length > max_size_link){
+        return link.substring(0, max_size_link)
+    }
+    return link;
 }
