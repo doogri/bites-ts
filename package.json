@@ -24,6 +24,7 @@
   "dependencies": {
     "@extractus/article-extractor": "^8.0.2",
     "@types/html-to-text": "^9.0.1",
+    "@types/validator": "^13.15.2",
     "crawler": "^1.4.0",
     "dotenv": "^16.4.5",
     "express": "^4.18.2",
@@ -34,7 +35,8 @@
     "pg": "^8.14.1",
     "reflect-metadata": "^0.2.2",
     "ts-node": "^10.9.1",
-    "typeorm": "^0.3.22"
+    "typeorm": "^0.3.22",
+    "validator": "^13.15.15"
   },
   "type": "module"
 }

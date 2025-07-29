@@ -2,6 +2,7 @@ import TelegramBot, { Message, WebHookOptions } from "node-telegram-bot-api";
 import { User } from "./db/entity/User.js";
 import { AppDataSource } from "./data-source.js";
 import { Link } from "./db/entity/Link.js";
+import validator from 'validator';
 
 export async function initTelegramBotManager() {
     const botToken = process.env["TELEGRAM_LINKS_BOT_TOKEN"] || '';
@@ -95,6 +96,11 @@ export async function initTelegramBotManager() {
             return;
         }
 
+        if (msg.text && msg.text.startsWith('/')) {
+            console.log(`Command received: ${msg.text}, skipping link storage`);
+            return;
+        }
+
         const userId = msg.from?.id;
         if (!userId){
             bot.sendMessage(chatId, 'I cannot know you. bye');
@@ -113,6 +119,19 @@ export async function initTelegramBotManager() {
             bot.sendMessage(chatId, 'I cannot know you. bye');
             return;
         }
+
+        if (!validator.isURL(msg.text, {
+            protocols: ['http', 'https'],
+            require_protocol: true,
+            require_valid_protocol: true,
+            allow_underscores: false,
+            allow_trailing_dot: false,
+            allow_protocol_relative_urls: false
+        })) {
+            bot.sendMessage(chatId, 'Please send a valid URL');
+            return;
+        }
+
         const validLink = validateLink(msg.text);
                 
         const link = new Link();
