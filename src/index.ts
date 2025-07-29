@@ -9,6 +9,7 @@ import { AppDataSource } from './lib/data-source.js';
 import * as linksBot from './lib/linksBot.js';
 import { sendSuggestions } from './lib/suggestions.js';
 import { Link } from './lib/db/entity/Link.js';
+import { User } from './lib/db/entity/User.js';
 
 
 dotenv.config({ 
@@ -63,6 +64,47 @@ async function initTelegramBotManager() {
 
         // send back the matched "whatever" to the chat
         bot.sendMessage(chatId, 'Wellcome! Paste here a link to an article you want to read.');
+    });
+
+    bot.onText(/\/list/, async (msg: Message) => {
+        const chatId = msg.chat.id;
+        const userId = msg.from?.id;
+        
+        if (!userId) {
+            bot.sendMessage(chatId, 'I cannot know you. bye');
+            return;
+        }
+
+        const userRepository = AppDataSource.getRepository(User);
+        const user = await userRepository.findOne({
+            where: { telegramId: userId },
+        });
+        
+        if (!user) {
+            bot.sendMessage(chatId, 'I cannot know you. bye');
+            return;
+        }
+
+        const linkRepository = AppDataSource.getRepository(Link);
+        const unreadLinks = await linkRepository.find({
+            where: { userId: user.id, sent: false },
+            order: { createdAt: 'ASC' },
+        });
+
+        if (unreadLinks.length === 0) {
+            bot.sendMessage(chatId, 'No unread links found.');
+            return;
+        }
+
+        const keyboards = unreadLinks.map((link: Link) => [{text: link.link, callback_data: link.id}]);
+
+        const options: TelegramBot.SendMessageOptions = {
+            reply_markup: {
+              inline_keyboard: [...keyboards]
+            }
+          };
+        
+        bot.sendMessage(chatId, 'Unread links:', options);
     });
 
     bot.on('error', (error) => {
