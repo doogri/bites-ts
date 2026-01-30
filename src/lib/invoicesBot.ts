@@ -7,7 +7,7 @@ interface KeyValue {
     value: string;
 }
 
-interface Item {
+export interface Item {
     id: string;
     code: string;
     name: string;
@@ -19,6 +19,12 @@ interface Item {
     weight?: number;
     category?: string[];
     additionalInfo?: KeyValue[];
+}
+
+export interface InvoiceItemWithMeta {
+    createdDate: string;
+    storeName: string;
+    items: Item[];
 }
 
 interface Payment {
@@ -275,6 +281,29 @@ export async function runInvoiceFromUrl(url: string): Promise<string> {
         throw new Error('Please provide a valid pairzon.com invoice link');
     }
     return await processInvoiceLink(url);
+}
+
+export async function getInvoiceDataFromUrl(url: string): Promise<InvoiceItemWithMeta> {
+    if (!isPairzonLink(url)) {
+        throw new Error('Please provide a valid pairzon.com invoice link');
+    }
+
+    const headers = await getInvoiceHeaders(url);
+    const location = headers.get('location');
+    
+    if (!location) {
+        throw new Error('Location header not found in response');
+    }
+
+    const uuid = extractUuidFromLocation(location);
+    const p = extractPParameter(location);
+    const invoice = await fetchInvoiceData(uuid, p);
+
+    return {
+        createdDate: invoice.createdDate,
+        storeName: invoice.store?.name ?? '',
+        items: invoice.items,
+    };
 }
 
 export async function initTelegramBotManager() {
