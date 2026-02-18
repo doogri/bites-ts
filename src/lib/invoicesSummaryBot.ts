@@ -39,6 +39,7 @@ export async function initTelegramBotManager() {
             'Available commands:\n' +
             '/new <url> - Submit a new invoice URL\n' +
             '/classify - Classify unclassified items\n' +
+            '/invoices - Browse & re-classify by month\n' +
             '/summary - View monthly summary'
         );
     });
@@ -106,6 +107,11 @@ export async function initTelegramBotManager() {
         await showNextUnclassifiedItem(bot, chatId);
     });
 
+    bot.onText(/\/invoices/, async (msg: Message) => {
+        const chatId = msg.chat.id;
+        await showMonthSelection(bot, chatId);
+    });
+
     bot.onText(/\/summary/, async (msg: Message) => {
         const chatId = msg.chat.id;
         await showFullSummary(bot, chatId);
@@ -121,6 +127,14 @@ export async function initTelegramBotManager() {
 
         if (data.startsWith('classify:')) {
             await handleClassifyCallback(bot, message.chat.id, data);
+        } else if (data.startsWith('month:')) {
+            const month = data.slice('month:'.length);
+            await showInvoicesForMonth(bot, message.chat.id, month);
+        } else if (data.startsWith('invoice:')) {
+            const invoiceId = data.slice('invoice:'.length);
+            await showNextItemInInvoice(bot, message.chat.id, invoiceId);
+        } else if (data.startsWith('reclassify:')) {
+            await handleReclassifyCallback(bot, message.chat.id, data);
         }
     });
 
@@ -342,6 +356,133 @@ async function showFullSummary(bot: TelegramBot, chatId: number) {
     table += totalLine + '\n</pre>';
 
     await bot.sendMessage(chatId, table, { parse_mode: 'HTML' });
+}
+
+async function showMonthSelection(bot: TelegramBot, chatId: number) {
+    const invoiceRepo = AppDataSource.getRepository(Invoice);
+
+    const rows: { month: string }[] = await invoiceRepo
+        .createQueryBuilder('i')
+        .select("to_char(date_trunc('month', i.invoiceDate), 'YYYY-MM')", 'month')
+        .groupBy("date_trunc('month', i.invoiceDate)")
+        .orderBy("date_trunc('month', i.invoiceDate)", 'DESC')
+        .getRawMany();
+
+    if (rows.length === 0) {
+        await bot.sendMessage(chatId, 'No invoices found.');
+        return;
+    }
+
+    const keyboard = rows.map(row => ([{
+        text: row.month,
+        callback_data: `month:${row.month}`,
+    }]));
+
+    await bot.sendMessage(chatId, 'Select a month:', {
+        reply_markup: { inline_keyboard: keyboard },
+    });
+}
+
+async function showInvoicesForMonth(bot: TelegramBot, chatId: number, month: string) {
+    const invoiceRepo = AppDataSource.getRepository(Invoice);
+
+    const invoices = await invoiceRepo
+        .createQueryBuilder('i')
+        .where("to_char(date_trunc('month', i.invoiceDate), 'YYYY-MM') = :month", { month })
+        .orderBy('i.invoiceDate', 'ASC')
+        .getMany();
+
+    if (invoices.length === 0) {
+        await bot.sendMessage(chatId, 'No invoices found for this month.');
+        return;
+    }
+
+    const keyboard = invoices.map(inv => {
+        const day = new Date(inv.invoiceDate).getDate().toString().padStart(2, '0');
+        const total = Number(inv.total).toFixed(0);
+        return [{
+            text: `${inv.storeName} - ${day} (₪${total})`,
+            callback_data: `invoice:${inv.id}`,
+        }];
+    });
+
+    await bot.sendMessage(chatId, `Invoices for ${month}:`, {
+        reply_markup: { inline_keyboard: keyboard },
+    });
+}
+
+async function showNextItemInInvoice(bot: TelegramBot, chatId: number, invoiceId: string, afterItemId?: string) {
+    const itemRepo = AppDataSource.getRepository(InvoiceItem);
+
+    const allItems = await itemRepo.find({
+        where: { invoiceId },
+        relations: ['invoice'],
+        order: { createdAt: 'ASC' },
+    });
+
+    if (allItems.length === 0) {
+        await bot.sendMessage(chatId, 'No items in this invoice.');
+        return;
+    }
+
+    let item: InvoiceItem | undefined;
+    if (afterItemId) {
+        const idx = allItems.findIndex(i => i.id === afterItemId);
+        item = idx >= 0 && idx + 1 < allItems.length ? allItems[idx + 1] : undefined;
+    } else {
+        item = allItems[0];
+    }
+
+    if (!item) {
+        await bot.sendMessage(chatId, '✅ All items re-classified!');
+        return;
+    }
+
+    const itemIndex = allItems.findIndex(i => i.id === item!.id) + 1;
+
+    const buttons = USAGE_OPTIONS.map(usage => ({
+        text: USAGE_LABELS[usage],
+        callback_data: `reclassify:${item!.id}:${usage}`,
+    }));
+
+    const keyboard: TelegramBot.InlineKeyboardButton[][] = [];
+    for (let i = 0; i < buttons.length; i += 2) {
+        keyboard.push(buttons.slice(i, i + 2));
+    }
+
+    const storeName = item.invoice?.storeName ?? 'Unknown store';
+    const currentUsage = USAGE_LABELS[item.usage] ?? item.usage;
+
+    await bot.sendMessage(chatId,
+        `📦 ${storeName} (${itemIndex}/${allItems.length})\n\n` +
+        `Item: <b>${escapeHtml(item.name)}</b>\n` +
+        `Price: ${Number(item.total).toFixed(2)} (qty: ${item.quantity})\n` +
+        `Current: ${currentUsage}`,
+        {
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: keyboard },
+        }
+    );
+}
+
+async function handleReclassifyCallback(bot: TelegramBot, chatId: number, data: string) {
+    const parts = data.split(':');
+    if (parts.length !== 3) return;
+
+    const [, itemId, usage] = parts;
+
+    const itemRepo = AppDataSource.getRepository(InvoiceItem);
+    const item = await itemRepo.findOneBy({ id: itemId });
+
+    if (!item) {
+        await bot.sendMessage(chatId, 'Item not found.');
+        return;
+    }
+
+    item.usage = usage;
+    await itemRepo.save(item);
+
+    await showNextItemInInvoice(bot, chatId, item.invoiceId, itemId);
 }
 
 function escapeHtml(text: string): string {
