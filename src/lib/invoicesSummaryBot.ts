@@ -6,6 +6,14 @@ import { getInvoiceDataFromUrl, isPairzonLink } from './invoicesBot.js';
 
 const USAGE_OPTIONS = ['his', 'apartment', 'flatmate', 'friends', 'unknown'] as const;
 
+const USAGE_SHORT: Record<string, string> = {
+    his: 'his',
+    apartment: 'apt',
+    flatmate: 'flat',
+    friends: 'fri',
+    unknown: 'unk',
+};
+
 const USAGE_LABELS: Record<string, string> = {
     his: 'For his only',
     apartment: 'For the apartment',
@@ -15,10 +23,10 @@ const USAGE_LABELS: Record<string, string> = {
 };
 
 export async function initTelegramBotManager() {
-    const botToken = process.env['TELEGRAM_SUMMARY_BOT_TOKEN'] || '';
+    const botToken = process.env['TELEGRAM_INVOICES_BOT_TOKEN'] || '';
 
     if (!botToken) {
-        console.error('TELEGRAM_SUMMARY_BOT_TOKEN is not set');
+        console.error('TELEGRAM_INVOICES_BOT_TOKEN is not set');
         return;
     }
 
@@ -100,7 +108,7 @@ export async function initTelegramBotManager() {
 
     bot.onText(/\/summary/, async (msg: Message) => {
         const chatId = msg.chat.id;
-        await showMonthSelection(bot, chatId);
+        await showFullSummary(bot, chatId);
     });
 
     bot.on('callback_query', async (query: CallbackQuery) => {
@@ -113,8 +121,6 @@ export async function initTelegramBotManager() {
 
         if (data.startsWith('classify:')) {
             await handleClassifyCallback(bot, message.chat.id, data);
-        } else if (data.startsWith('summary:')) {
-            await handleSummaryCallback(bot, message.chat.id, data);
         }
     });
 
@@ -125,6 +131,56 @@ export async function initTelegramBotManager() {
     bot.on('message', async (msg: Message) => {
         if (msg.from?.is_bot) return;
         if (!msg.text || msg.text.startsWith('/')) return;
+
+        const chatId = msg.chat.id;
+        const url = msg.text.trim();
+
+        if (!isPairzonLink(url)) {
+            return;
+        }
+
+        try {
+            await bot.sendMessage(chatId, 'Fetching invoice data...');
+
+            const data = await getInvoiceDataFromUrl(url);
+
+            const invoiceRepo = AppDataSource.getRepository(Invoice);
+            const existing = await invoiceRepo.findOneBy({ externalId: data.id });
+
+            if (existing) {
+                await bot.sendMessage(chatId, `Invoice already exists (${existing.storeName}, ${existing.items?.length ?? 0} items).`);
+                return;
+            }
+
+            const invoice = invoiceRepo.create({
+                externalId: data.id,
+                storeName: data.storeName,
+                invoiceDate: new Date(data.createdDate),
+                total: data.items.reduce((sum, item) => sum + (item.total ?? 0), 0),
+                sourceUrl: url,
+                classified: false,
+            });
+
+            await invoiceRepo.save(invoice);
+
+            const itemRepo = AppDataSource.getRepository(InvoiceItem);
+            const items = data.items.map(item => itemRepo.create({
+                name: item.name,
+                price: item.price ?? 0,
+                total: item.total ?? 0,
+                quantity: item.quantity ?? 1,
+                usage: 'unknown',
+                invoiceId: invoice.id,
+            }));
+
+            await itemRepo.save(items);
+
+            await bot.sendMessage(chatId, `Invoice saved: ${data.storeName} (${items.length} items). Use /classify to classify items.`);
+        } catch (error) {
+            console.error('Error processing invoice:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            await bot.sendMessage(chatId, `Error: ${errorMessage}`);
+        }
     });
 }
 
@@ -215,86 +271,75 @@ async function handleClassifyCallback(bot: TelegramBot, chatId: number, data: st
     await showNextUnclassifiedItem(bot, chatId);
 }
 
-async function showMonthSelection(bot: TelegramBot, chatId: number) {
-    const invoiceRepo = AppDataSource.getRepository(Invoice);
+async function showFullSummary(bot: TelegramBot, chatId: number) {
+    const itemRepo = AppDataSource.getRepository(InvoiceItem);
 
-    const months: { month: string }[] = await invoiceRepo
-        .createQueryBuilder('invoice')
-        .select("to_char(date_trunc('month', invoice.invoiceDate), 'YYYY-MM')", 'month')
-        .distinct(true)
-        .orderBy("1", 'DESC')
+    const rows: { month: string; usage: string; total: string }[] = await itemRepo
+        .createQueryBuilder('item')
+        .select("to_char(date_trunc('month', i.invoiceDate), 'YYYY-MM')", 'month')
+        .addSelect('item.usage', 'usage')
+        .addSelect('SUM(item.total)', 'total')
+        .innerJoin('item.invoice', 'i')
+        .groupBy("to_char(date_trunc('month', i.invoiceDate), 'YYYY-MM')")
+        .addGroupBy('item.usage')
+        .orderBy("to_char(date_trunc('month', i.invoiceDate), 'YYYY-MM')", 'DESC')
         .getRawMany();
 
-    if (months.length === 0) {
+    if (rows.length === 0) {
         await bot.sendMessage(chatId, 'No invoices found.');
         return;
     }
 
-    const keyboard: TelegramBot.InlineKeyboardButton[][] = [];
-    for (let i = 0; i < months.length; i += 2) {
-        const row = months.slice(i, i + 2).map(m => ({
-            text: m.month,
-            callback_data: `summary:${m.month}`,
-        }));
-        keyboard.push(row);
-    }
-
-    await bot.sendMessage(chatId, 'Select a month:', {
-        reply_markup: { inline_keyboard: keyboard },
-    });
-}
-
-async function handleSummaryCallback(bot: TelegramBot, chatId: number, data: string) {
-    const month = data.replace('summary:', '');
-
-    const itemRepo = AppDataSource.getRepository(InvoiceItem);
-    const invoiceRepo = AppDataSource.getRepository(Invoice);
-
-    // Get invoices for this month
-    const invoices = await invoiceRepo
-        .createQueryBuilder('invoice')
-        .where("to_char(date_trunc('month', invoice.invoiceDate), 'YYYY-MM') = :month", { month })
-        .getMany();
-
-    if (invoices.length === 0) {
-        await bot.sendMessage(chatId, `No invoices found for ${month}.`);
-        return;
-    }
-
-    const invoiceIds = invoices.map(inv => inv.id);
-
-    // Get totals grouped by usage
-    const results: { usage: string; total: string }[] = await itemRepo
-        .createQueryBuilder('item')
-        .select('item.usage', 'usage')
-        .addSelect('SUM(item.total)', 'total')
-        .where('item.invoiceId IN (:...ids)', { ids: invoiceIds })
-        .groupBy('item.usage')
-        .getRawMany();
-
-    const totals: Record<string, number> = {};
-    let grandTotal = 0;
-    for (const r of results) {
-        totals[r.usage] = parseFloat(r.total) || 0;
-        grandTotal += totals[r.usage];
-    }
-
-    // Build formatted table
-    let table = `<b>Monthly Summary: ${month}</b>\n`;
-    table += `<i>${invoices.length} invoice(s) processed</i>\n\n`;
-    table += `<pre>\n`;
-    table += `Category           | Total\n`;
-    table += `───────────────────┼────────\n`;
+    // Build cross-table: month -> usage -> total
+    const months: string[] = [];
+    const data: Record<string, Record<string, number>> = {};
+    const colTotals: Record<string, number> = {};
 
     for (const usage of USAGE_OPTIONS) {
-        const label = USAGE_LABELS[usage];
-        const total = (totals[usage] ?? 0).toFixed(2);
-        table += `${label.padEnd(19)}| ${total}\n`;
+        colTotals[usage] = 0;
     }
 
-    table += `───────────────────┼────────\n`;
-    table += `${'Grand Total'.padEnd(19)}| ${grandTotal.toFixed(2)}\n`;
-    table += `</pre>`;
+    for (const row of rows) {
+        if (!data[row.month]) {
+            data[row.month] = {};
+            months.push(row.month);
+        }
+        const val = parseFloat(row.total) || 0;
+        data[row.month][row.usage] = val;
+        colTotals[row.usage] = (colTotals[row.usage] ?? 0) + val;
+    }
+
+    const W = 7; // column width
+    const cols = USAGE_OPTIONS.map(u => USAGE_SHORT[u]);
+    const header = 'Month  ' + cols.map(c => '|' + c.padStart(W)).join('') + '|' + 'Total'.padStart(W);
+    const sep = '───────' + cols.map(() => '┼' + '─'.repeat(W)).join('') + '┼' + '─'.repeat(W);
+
+    let table = `<pre>\n${header}\n${sep}\n`;
+
+    let grandTotal = 0;
+    for (const month of months) {
+        let rowTotal = 0;
+        let line = month.padEnd(7);
+        for (const usage of USAGE_OPTIONS) {
+            const val = data[month][usage] ?? 0;
+            rowTotal += val;
+            line += '|' + val.toFixed(0).padStart(W);
+        }
+        grandTotal += rowTotal;
+        line += '|' + rowTotal.toFixed(0).padStart(W);
+        table += line + '\n';
+    }
+
+    table += sep + '\n';
+
+    let totalLine = 'Total  ';
+    let allColSum = 0;
+    for (const usage of USAGE_OPTIONS) {
+        allColSum += colTotals[usage];
+        totalLine += '|' + colTotals[usage].toFixed(0).padStart(W);
+    }
+    totalLine += '|' + grandTotal.toFixed(0).padStart(W);
+    table += totalLine + '\n</pre>';
 
     await bot.sendMessage(chatId, table, { parse_mode: 'HTML' });
 }

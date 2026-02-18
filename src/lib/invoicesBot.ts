@@ -1,4 +1,3 @@
-import TelegramBot, { Message } from "node-telegram-bot-api";
 import validator from 'validator';
 
 // Type definitions based on JSON schema
@@ -308,59 +307,3 @@ export async function getInvoiceDataFromUrl(url: string): Promise<InvoiceItemWit
     };
 }
 
-export async function initTelegramBotManager() {
-    const botToken = process.env["TELEGRAM_INVOICES_BOT_TOKEN"] || '';
-    
-    if (!botToken) {
-        console.error('TELEGRAM_INVOICES_BOT_TOKEN is not set');
-        return;
-    }
-
-    const bot = new TelegramBot(botToken, { polling: true });
-
-    bot.onText(/\/start/, async (msg: Message) => {
-        const chatId = msg.chat.id;
-        await bot.sendMessage(chatId, 'Welcome! Send me a pairzon.com invoice link to extract items.');
-    });
-
-    bot.on('error', (error) => {
-        console.error('Invoices bot error: ' + error);
-    });
-
-    bot.on('message', async (msg: Message) => {
-        const chatId = msg.chat.id;
-        console.log('Invoices bot message:', JSON.stringify(msg));
-
-        if (msg.from?.is_bot) {
-            console.log('Message from bot. Ignoring.');
-            return;
-        }
-
-        if (!msg.text) {
-            await bot.sendMessage(chatId, 'Please send a pairzon.com invoice link.');
-            return;
-        }
-
-        if (msg.text.startsWith('/')) {
-            // Commands are handled separately
-            return;
-        }
-
-        // Validate URL
-        if (!isPairzonLink(msg.text)) {
-            await bot.sendMessage(chatId, 'Please send a valid pairzon.com invoice link.');
-            return;
-        }
-
-        // Process invoice
-        try {
-            await bot.sendMessage(chatId, 'Processing invoice...');
-            const table = await processInvoiceLink(msg.text);
-            await bot.sendMessage(chatId, table, { parse_mode: 'Markdown' });
-        } catch (error) {
-            console.error('Error processing invoice:', error);
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-            await bot.sendMessage(chatId, `Error processing invoice: ${errorMessage}`);
-        }
-    });
-}
