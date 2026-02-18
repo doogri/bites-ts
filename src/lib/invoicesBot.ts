@@ -257,7 +257,7 @@ async function processInvoiceLink(url: string): Promise<string> {
 /**
  * Validate if URL is a pairzon.com link
  */
-function isPairzonLink(url: string): boolean {
+export function isPairzonLink(url: string): boolean {
     try {
         if (!validator.isURL(url, {
             protocols: ['http', 'https'],

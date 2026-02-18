@@ -7,15 +7,30 @@ import * as fs from 'node:fs/promises';
 import * as readline from 'node:readline';
 import * as path from 'node:path';
 
+export const categoryLabels: Record<Usage, string> = {
+    his: 'For his only',
+    apartment: 'For the apartment',
+    flatmate: 'For the flatmate',
+    friends: 'For friends',
+    unknown: 'Unknown',
+};
+
+export interface MonthlySummaryResult {
+    month: string;
+    totals: Record<Usage, number>;
+    grandTotal: number;
+    invoiceCount: number;
+}
+
 /**
  * List all available months (YYYY-MM folders) that contain invoice CSV files
  */
-async function listAvailableMonths(): Promise<string[]> {
+export async function listAvailableMonths(): Promise<string[]> {
     const months: string[] = [];
     try {
         const baseDir = getDownloadsInvoicesBaseDir();
         const entries = await fs.readdir(baseDir, { withFileTypes: true });
-        
+
         for (const entry of entries) {
             if (entry.isDirectory()) {
                 const folderName = entry.name;
@@ -40,7 +55,7 @@ async function listAvailableMonths(): Promise<string[]> {
         // Base directory doesn't exist yet
         console.error('Error reading invoices directory:', error);
     }
-    
+
     // Sort months descending (newest first)
     return months.sort((a, b) => b.localeCompare(a));
 }
@@ -51,7 +66,7 @@ async function listAvailableMonths(): Promise<string[]> {
 function askMonthSelection(months: string[]): Promise<string> {
     return new Promise((resolve, reject) => {
         let selectedIndex = 0;
-        
+
         const rl = readline.createInterface({
             input: process.stdin,
             output: process.stdout,
@@ -122,79 +137,87 @@ function escapeCsv(value: string | number): string {
 }
 
 /**
- * Calculate monthly summary for a given month
+ * Get monthly summary data without printing or saving (reusable by bot)
+ */
+export async function getMonthlySummaryData(month: string): Promise<MonthlySummaryResult | null> {
+    const baseDir = getDownloadsInvoicesBaseDir();
+    const monthDir = path.join(baseDir, month);
+
+    const files = await fs.readdir(monthDir);
+    const invoiceFiles = files.filter(file => file.startsWith('invoice_') && file.endsWith('.csv'));
+
+    if (invoiceFiles.length === 0) {
+        return null;
+    }
+
+    const totals: Record<Usage, number> = {
+        his: 0,
+        apartment: 0,
+        flatmate: 0,
+        friends: 0,
+        unknown: 0,
+    };
+
+    for (const file of invoiceFiles) {
+        const filePath = path.join(monthDir, file);
+        const rows = await parseInvoiceCsv(filePath);
+
+        for (const row of rows) {
+            totals[row.usage] += row.total;
+        }
+    }
+
+    let grandTotal = 0;
+    for (const total of Object.values(totals)) {
+        grandTotal += total;
+    }
+
+    return { month, totals, grandTotal, invoiceCount: invoiceFiles.length };
+}
+
+/**
+ * Calculate monthly summary for a given month (CLI version - prints and saves CSV)
  */
 async function calculateMonthlySummary(month: string): Promise<void> {
     const baseDir = getDownloadsInvoicesBaseDir();
     const monthDir = path.join(baseDir, month);
-    
+
     try {
-        // Read all invoice CSV files in the month folder
-        const files = await fs.readdir(monthDir);
-        const invoiceFiles = files.filter(file => file.startsWith('invoice_') && file.endsWith('.csv'));
-        
-        if (invoiceFiles.length === 0) {
+        const result = await getMonthlySummaryData(month);
+
+        if (!result) {
             console.log(`No invoice files found for month ${month}`);
             return;
         }
-        
-        console.log(`\nProcessing ${invoiceFiles.length} invoice file(s) for ${month}...\n`);
-        
-        // Aggregate totals per usage category
-        const totals: Record<Usage, number> = {
-            his: 0,
-            apartment: 0,
-            flatmate: 0,
-            friends: 0,
-            unknown: 0,
-        };
-        
-        // Process each invoice file
-        for (const file of invoiceFiles) {
-            const filePath = path.join(monthDir, file);
-            const rows = await parseInvoiceCsv(filePath);
-            
-            for (const row of rows) {
-                totals[row.usage] += row.total;
-            }
-        }
-        
+
+        console.log(`\nProcessing ${result.invoiceCount} invoice file(s) for ${month}...\n`);
+
         // Print summary table
         console.log('Monthly Summary by Category:');
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         console.log('Category          | Total');
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        
-        const categoryLabels: Record<Usage, string> = {
-            his: 'For his only',
-            apartment: 'For the apartment',
-            flatmate: 'For the flatmate',
-            friends: 'For friends',
-            unknown: 'Unknown',
-        };
-        
-        let grandTotal = 0;
-        for (const [usage, total] of Object.entries(totals) as [Usage, number][]) {
+
+        for (const [usage, total] of Object.entries(result.totals) as [Usage, number][]) {
             const label = categoryLabels[usage];
             console.log(`${label.padEnd(18)} | ${total.toFixed(2)}`);
-            grandTotal += total;
         }
-        
+
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        console.log(`${'Grand Total'.padEnd(18)} | ${grandTotal.toFixed(2)}`);
+        console.log(`${'Grand Total'.padEnd(18)} | ${result.grandTotal.toFixed(2)}`);
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-        
+
         // Save summary CSV
         const summaryFilePath = path.join(monthDir, `summary_${month}.csv`);
         const summaryLines = ['usage,total'];
-        for (const [usage, total] of Object.entries(totals) as [Usage, number][]) {
+        for (const [usage, total] of Object.entries(result.totals) as [Usage, number][]) {
             summaryLines.push(`${usage},${total.toFixed(2)}`);
         }
-        summaryLines.push(`grand_total,${grandTotal.toFixed(2)}`);
-        
+        summaryLines.push(`grand_total,${result.grandTotal.toFixed(2)}`);
+
         await fs.writeFile(summaryFilePath, summaryLines.join('\n') + '\n', 'utf8');
         console.log(`Summary saved to: ${summaryFilePath}`);
-        
+
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.error(`Error calculating summary for ${month}:`, message);
@@ -204,9 +227,9 @@ async function calculateMonthlySummary(month: string): Promise<void> {
 
 async function main() {
     const [, , monthArg] = process.argv;
-    
+
     let selectedMonth: string;
-    
+
     if (monthArg) {
         // Validate month format (YYYY-MM)
         if (!/^\d{4}-\d{2}$/.test(monthArg)) {
@@ -218,17 +241,17 @@ async function main() {
     } else {
         // Show interactive menu
         const months = await listAvailableMonths();
-        
+
         if (months.length === 0) {
             console.log('No months with invoice files found.');
             console.log(`Make sure invoices are stored in: ${getDownloadsInvoicesBaseDir()}`);
             process.exitCode = 1;
             return;
         }
-        
+
         selectedMonth = await askMonthSelection(months);
     }
-    
+
     await calculateMonthlySummary(selectedMonth);
 }
 

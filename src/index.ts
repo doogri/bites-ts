@@ -9,6 +9,7 @@ import { AppDataSource } from './lib/data-source.js';
 import * as linksBot from './lib/linksBot.js';
 
 import * as invoicesBot from './lib/invoicesBot.js';
+import * as summaryBot from './lib/invoicesSummaryBot.js';
 import { sendSuggestions } from './lib/suggestions.js';
 import { Link } from './lib/db/entity/Link.js';
 import { User } from './lib/db/entity/User.js';
@@ -32,6 +33,7 @@ try {
     await initTelegramBotManager();
     await linksBot.initTelegramBotManager();
     await invoicesBot.initTelegramBotManager();
+    await summaryBot.initTelegramBotManager();
     console.log('Bot is running');
 } catch (error) {
     console.error('failed to init telegram bot. error: ' + error);    
