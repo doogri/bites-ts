@@ -22,6 +22,7 @@ export interface Item {
 }
 
 export interface InvoiceItemWithMeta {
+    id: string;
     createdDate: string;
     storeName: string;
     items: Item[];
@@ -300,6 +301,7 @@ export async function getInvoiceDataFromUrl(url: string): Promise<InvoiceItemWit
     const invoice = await fetchInvoiceData(uuid, p);
 
     return {
+        id: invoice.id,
         createdDate: invoice.createdDate,
         storeName: invoice.store?.name ?? '',
         items: invoice.items,
