@@ -5,6 +5,8 @@
   "main": "index.ts",
   "scripts": {
     "build": "tsc",
+    "build:client": "(cd client && npm install && npm run build)",
+    "build:all": "npm run build && npm run build:client",
     "invoice:cli": "npm run build && node dist/lib/invoicesCli.js",
     "invoice:month": "npm run build && node dist/lib/invoicesMonthSummary.js",
     "postinstall": "tsc",

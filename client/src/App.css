@@ -1,0 +1,342 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface-hover: #20243a;
+  --border: #2d3149;
+  --text: #e2e8f0;
+  --text-muted: #8b92a9;
+  --accent: #6366f1;
+  --accent-dim: #3730a3;
+  --error: #f87171;
+  --badge-bg: #f59e0b22;
+  --badge-text: #f59e0b;
+
+  --his: #3b82f6;
+  --apartment: #10b981;
+  --flatmate: #f59e0b;
+  --friends: #ec4899;
+  --unknown: #4b5563;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ── Login ── */
+.login-gate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 320px;
+  padding: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.login-form h2 {
+  font-size: 20px;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+/* ── Layout ── */
+.app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding-bottom: 60px;
+}
+
+.top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.top-bar h1 {
+  font-size: 18px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.main-content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Add bar ── */
+.add-bar {
+  flex: 1;
+}
+
+.add-bar form {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Inputs & buttons ── */
+input[type="text"],
+input[type="password"],
+input[type="url"] {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+input:focus {
+  border-color: var(--accent);
+}
+
+input::placeholder {
+  color: var(--text-muted);
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.add-bar button[type="submit"],
+.login-form button[type="submit"] {
+  background: var(--accent);
+  color: #fff;
+  white-space: nowrap;
+}
+
+.add-bar button:hover:not(:disabled),
+.login-form button:hover:not(:disabled) {
+  background: var(--accent-dim);
+}
+
+/* ── Month section ── */
+.month-section {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.month-header {
+  width: 100%;
+  background: var(--surface);
+  border: none;
+  border-radius: 0;
+  color: var(--text);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.month-header:hover {
+  background: var(--surface-hover);
+}
+
+.chevron {
+  font-size: 10px;
+  color: var(--text-muted);
+  width: 12px;
+}
+
+.month-label {
+  font-weight: 700;
+  font-size: 15px;
+  min-width: 72px;
+}
+
+.month-meta {
+  flex: 1;
+  color: var(--text-muted);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.month-total {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+/* ── Badge ── */
+.badge {
+  background: var(--badge-bg);
+  color: var(--badge-text);
+  border-radius: 99px;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ── Invoice card ── */
+.month-invoices {
+  display: flex;
+  flex-direction: column;
+}
+
+.invoice-card {
+  border-top: 1px solid var(--border);
+  padding: 0 0 12px;
+}
+
+.invoice-card.classified .invoice-header {
+  opacity: 0.7;
+}
+
+.invoice-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px 8px;
+}
+
+.store-name {
+  font-weight: 600;
+  flex: 1;
+  direction: rtl;
+  text-align: left;
+}
+
+.invoice-date {
+  color: var(--text-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.invoice-total {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Items table ── */
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  direction: rtl;
+}
+
+.items-table th {
+  color: var(--text-muted);
+  font-weight: 500;
+  padding: 4px 16px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.items-table td {
+  padding: 5px 16px;
+  vertical-align: middle;
+}
+
+.items-table tr:hover td {
+  background: var(--surface-hover);
+}
+
+tr.row-unknown td {
+  background: #f59e0b08;
+}
+
+tr.row-unknown:hover td {
+  background: #f59e0b12;
+}
+
+.cell-name {
+  max-width: 300px;
+}
+
+.cell-qty,
+.cell-price {
+  color: var(--text-muted);
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* ── Usage buttons ── */
+.usage-buttons {
+  display: flex;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.usage-btn {
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.usage-btn:hover {
+  border-color: var(--text-muted);
+  color: var(--text);
+}
+
+.usage-btn.active.usage-his      { background: var(--his);      border-color: var(--his);      color: #fff; }
+.usage-btn.active.usage-apartment { background: var(--apartment); border-color: var(--apartment); color: #fff; }
+.usage-btn.active.usage-flatmate  { background: var(--flatmate);  border-color: var(--flatmate);  color: #000; }
+.usage-btn.active.usage-friends   { background: var(--friends);   border-color: var(--friends);   color: #fff; }
+.usage-btn.active.usage-unknown   { background: var(--unknown);   border-color: var(--unknown);   color: #fff; }
+
+/* ── Misc ── */
+.error-msg {
+  color: var(--error);
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.status-msg {
+  color: var(--text-muted);
+  padding: 24px 0;
+  text-align: center;
+}
