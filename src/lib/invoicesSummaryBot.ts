@@ -2,7 +2,7 @@ import TelegramBot, { Message, CallbackQuery } from 'node-telegram-bot-api';
 import { AppDataSource } from './data-source.js';
 import { Invoice } from './db/entity/Invoice.js';
 import { InvoiceItem } from './db/entity/InvoiceItem.js';
-import { getInvoiceDataFromUrl, isPairzonLink } from './invoicesBot.js';
+import { getInvoiceDataFromUrl, isSupportedInvoiceLink } from './invoicesBot.js';
 
 const USAGE_OPTIONS = ['his', 'apartment', 'flatmate', 'friends', 'unknown'] as const;
 
@@ -53,8 +53,8 @@ export async function initTelegramBotManager() {
             return;
         }
 
-        if (!isPairzonLink(url)) {
-            await bot.sendMessage(chatId, 'Please provide a valid pairzon.com invoice link.');
+        if (!isSupportedInvoiceLink(url)) {
+            await bot.sendMessage(chatId, 'Please provide a valid pairzon.com or rami-levy.co.il invoice link.');
             return;
         }
 
@@ -149,7 +149,7 @@ export async function initTelegramBotManager() {
         const chatId = msg.chat.id;
         const url = msg.text.trim();
 
-        if (!isPairzonLink(url)) {
+        if (!isSupportedInvoiceLink(url)) {
             return;
         }
 

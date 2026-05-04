@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { AppDataSource } from './data-source.js';
 import { Invoice } from './db/entity/Invoice.js';
 import { InvoiceItem } from './db/entity/InvoiceItem.js';
-import { getInvoiceDataFromUrl, isPairzonLink } from './invoicesBot.js';
+import { getInvoiceDataFromUrl, isSupportedInvoiceLink } from './invoicesBot.js';
 
 const VALID_USAGES = ['his', 'apartment', 'flatmate', 'friends', 'unknown'] as const;
 
@@ -38,8 +38,8 @@ export function createInvoicesRouter(): Router {
     router.post('/invoices', async (req: Request, res: Response) => {
         const { url } = req.body as { url?: string };
 
-        if (!url || !isPairzonLink(url)) {
-            res.status(400).json({ error: 'Invalid pairzon URL' });
+        if (!url || !isSupportedInvoiceLink(url)) {
+            res.status(400).json({ error: 'Invalid invoice URL (must be pairzon.com or rami-levy.co.il)' });
             return;
         }
 

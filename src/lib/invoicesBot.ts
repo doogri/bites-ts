@@ -276,6 +276,74 @@ export function isPairzonLink(url: string): boolean {
     }
 }
 
+export function isRamiLevyLink(url: string): boolean {
+    try {
+        const urlObj = new URL(url);
+        return urlObj.hostname.includes('rami-levy.co.il') || urlObj.hostname.includes('digi.rami-levy');
+    } catch {
+        return false;
+    }
+}
+
+export function isSupportedInvoiceLink(url: string): boolean {
+    return isPairzonLink(url) || isRamiLevyLink(url);
+}
+
+// Nuxt SSR payload resolver: flat index-reference array → plain object
+function resolveNuxtPayload(arr: unknown[], i: number): unknown {
+    const item = arr[i];
+    if (Array.isArray(item)) {
+        if (item[0] === 'ShallowReactive' || item[0] === 'Reactive') return resolveNuxtPayload(arr, item[1] as number);
+        if (item[0] === 'Set') return [];
+        return item.map((j: unknown) => resolveNuxtPayload(arr, j as number));
+    }
+    if (item !== null && typeof item === 'object') {
+        const result: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(item as Record<string, number>)) {
+            result[k] = resolveNuxtPayload(arr, v);
+        }
+        return result;
+    }
+    return item;
+}
+
+async function getRamiLevyInvoiceData(url: string): Promise<InvoiceItemWithMeta> {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Failed to fetch Rami Levy invoice: ${response.status}`);
+
+    const html = await response.text();
+    const match = html.match(/<script[^>]+id="__NUXT_DATA__"[^>]*>(\[[\s\S]*?\])<\/script>/);
+    if (!match) throw new Error('Could not find invoice data in page');
+
+    const payload = JSON.parse(match[1]) as unknown[];
+    const root = resolveNuxtPayload(payload, 0) as Record<string, unknown>;
+    const dataMap = (root['data'] as Record<string, unknown>);
+    const doc = Object.values(dataMap)[0] as Record<string, unknown>;
+
+    const branch = doc['branch'] as Record<string, unknown> | null;
+    const storeName = branch ? `רמי לוי ${branch['name'] as string}` : 'רמי לוי';
+    const createdAt = doc['created_at'] as string;
+    const id = doc['id'] as string;
+    const payments = doc['payments'] as Record<string, unknown>;
+
+    const rawItems = doc['items'] as Record<string, unknown>[];
+    const items: Item[] = rawItems.map((item, index) => ({
+        id: String(item['code'] ?? index),
+        code: String(item['code'] ?? ''),
+        name: String(item['name'] ?? ''),
+        price: Number(item['price'] ?? 0),
+        total: Number(item['total'] ?? 0),
+        quantity: Number(item['quantity'] ?? 1) || 1,
+    }));
+
+    return {
+        id,
+        createdDate: createdAt,
+        storeName,
+        items,
+    };
+}
+
 export async function runInvoiceFromUrl(url: string): Promise<string> {
     if (!isPairzonLink(url)) {
         throw new Error('Please provide a valid pairzon.com invoice link');
@@ -284,13 +352,17 @@ export async function runInvoiceFromUrl(url: string): Promise<string> {
 }
 
 export async function getInvoiceDataFromUrl(url: string): Promise<InvoiceItemWithMeta> {
+    if (isRamiLevyLink(url)) {
+        return getRamiLevyInvoiceData(url);
+    }
+
     if (!isPairzonLink(url)) {
-        throw new Error('Please provide a valid pairzon.com invoice link');
+        throw new Error('Please provide a valid pairzon.com or rami-levy.co.il invoice link');
     }
 
     const headers = await getInvoiceHeaders(url);
     const location = headers.get('location');
-    
+
     if (!location) {
         throw new Error('Location header not found in response');
     }
