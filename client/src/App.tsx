@@ -212,10 +212,71 @@ function MonthSection({
   );
 }
 
+function SummaryPanel({ invoices }: { invoices: Invoice[] }) {
+  const months = Array.from(
+    new Set(invoices.map(inv => inv.invoiceDate.slice(0, 7)))
+  ).sort((a, b) => b.localeCompare(a));
+
+  const data: Record<string, Record<string, number>> = {};
+  for (const inv of invoices) {
+    const month = inv.invoiceDate.slice(0, 7);
+    if (!data[month]) data[month] = {};
+    for (const item of inv.items) {
+      data[month][item.usage] = (data[month][item.usage] ?? 0) + Number(item.total);
+    }
+  }
+
+  const colTotals: Record<string, number> = {};
+  for (const usage of USAGE_OPTIONS) {
+    colTotals[usage] = months.reduce((s, m) => s + (data[m]?.[usage] ?? 0), 0);
+  }
+  const grandTotal = USAGE_OPTIONS.reduce((s, u) => s + colTotals[u], 0);
+
+  return (
+    <div className="summary-panel">
+      <table className="summary-table">
+        <thead>
+          <tr>
+            <th>Month</th>
+            {USAGE_OPTIONS.map(u => <th key={u} className={`col-${u}`}>{USAGE_LABELS[u]}</th>)}
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {months.map(month => {
+            const rowTotal = USAGE_OPTIONS.reduce((s, u) => s + (data[month]?.[u] ?? 0), 0);
+            return (
+              <tr key={month}>
+                <td className="summary-month">{month}</td>
+                {USAGE_OPTIONS.map(u => (
+                  <td key={u} className={`summary-val col-${u}`}>
+                    {data[month]?.[u] ? `₪${data[month][u].toFixed(0)}` : '—'}
+                  </td>
+                ))}
+                <td className="summary-row-total">₪{rowTotal.toFixed(0)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td className="summary-month">Total</td>
+            {USAGE_OPTIONS.map(u => (
+              <td key={u} className={`summary-val col-${u}`}>₪{colTotals[u].toFixed(0)}</td>
+            ))}
+            <td className="summary-row-total">₪{grandTotal.toFixed(0)}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+}
+
 export default function App() {
   const [authed, setAuthed] = useState(!!localStorage.getItem('web_secret'));
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
 
   useEffect(() => {
     if (!authed) return;
@@ -255,7 +316,15 @@ export default function App() {
       <header className="top-bar">
         <h1>Invoices</h1>
         <AddInvoiceBar onAdd={handleAdd} />
+        <button
+          className={`summary-toggle${showSummary ? ' active' : ''}`}
+          onClick={() => setShowSummary(s => !s)}
+          disabled={invoices.length === 0}
+        >
+          Summary
+        </button>
       </header>
+      {showSummary && <SummaryPanel invoices={invoices} />}
       <main className="main-content">
         {loading && <p className="status-msg">Loading...</p>}
         {!loading && groups.length === 0 && (

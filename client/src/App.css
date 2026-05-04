@@ -328,6 +328,78 @@ tr.row-unknown:hover td {
 .usage-btn.active.usage-friends   { background: var(--friends);   border-color: var(--friends);   color: #fff; }
 .usage-btn.active.usage-unknown   { background: var(--unknown);   border-color: var(--unknown);   color: #fff; }
 
+/* ── Summary toggle button ── */
+.summary-toggle {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  white-space: nowrap;
+  padding: 8px 14px;
+}
+
+.summary-toggle:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.summary-toggle.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* ── Summary panel ── */
+.summary-panel {
+  border-bottom: 1px solid var(--border);
+  padding: 16px;
+  background: var(--surface);
+  overflow-x: auto;
+}
+
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.summary-table th,
+.summary-table td {
+  padding: 7px 14px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.summary-table th:first-child,
+.summary-table td:first-child {
+  text-align: left;
+}
+
+.summary-table thead th {
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.summary-table tfoot td {
+  border-top: 1px solid var(--border);
+  font-weight: 700;
+}
+
+.summary-table tbody tr:hover td {
+  background: var(--surface-hover);
+}
+
+.summary-month { font-weight: 600; }
+.summary-row-total { font-weight: 700; }
+.summary-val { color: var(--text-muted); }
+.summary-val:not(:empty) { color: var(--text); }
+
+.col-his      { color: var(--his); }
+.col-apartment { color: var(--apartment); }
+.col-flatmate  { color: var(--flatmate); }
+.col-friends   { color: var(--friends); }
+.col-unknown   { color: var(--text-muted); }
+
 /* ── Misc ── */
 .error-msg {
   color: var(--error);
