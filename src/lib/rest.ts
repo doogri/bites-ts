@@ -1,19 +1,16 @@
 import express from 'express';
+import { join } from 'path';
+import { existsSync } from 'fs';
+import { createInvoicesRouter } from './invoicesApi.js';
 
 const app = express();
 
-
-// Middleware to parse JSON requests
 app.use(express.json());
 
-// Route for the homepage (root path)
-app.get('/', (req, res) => {
-  res.send('Hello, World!');
-});
+app.use('/api', createInvoicesRouter());
 
-// Route for health check
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'healthy' });
+app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'healthy' });
 });
 
 app.post('/new-messsage', (req, res) => {
@@ -21,17 +18,12 @@ app.post('/new-messsage', (req, res) => {
     res.status(200).send('ok');
 });
 
-// Route for favicon.ico (you can provide a favicon file)
-app.get('/favicon.ico', (req, res) => {
-  // Replace 'favicon.ico' with the path to your favicon file
-  //res.sendFile(__dirname + '/favicon.ico');
-  res.status(200);
-});
-
-// Error handling middleware
-// app.use((err, req, res, next) => {
-//   console.error(err.stack);
-//   res.status(500).send('Something went wrong!');
-// });
+const publicPath = join(process.cwd(), 'dist', 'public');
+if (existsSync(publicPath)) {
+    app.use(express.static(publicPath));
+    app.get('*', (_req, res) => {
+        res.sendFile(join(publicPath, 'index.html'));
+    });
+}
 
 export default app;

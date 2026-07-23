@@ -5,7 +5,12 @@
   "main": "index.ts",
   "scripts": {
     "build": "tsc",
+    "build:client": "(cd client && npm install && npm run build)",
+    "build:all": "npm run build && npm run build:client",
+    "invoice:cli": "npm run build && node dist/lib/invoicesCli.js",
+    "invoice:month": "npm run build && node dist/lib/invoicesMonthSummary.js",
     "postinstall": "tsc",
+    "prestart": "fuser -k 3000/tcp || true",
     "start": "npm run migration:run && node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "typeorm": "typeorm-ts-node-commonjs",
