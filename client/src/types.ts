@@ -5,6 +5,7 @@ export interface InvoiceItem {
   name: string;
   price: number;
   total: number;
+  discount: number;
   quantity: number;
   usage: Usage;
   invoiceId: string;
@@ -18,6 +19,7 @@ export interface Invoice {
   total: number;
   sourceUrl: string;
   classified: boolean;
+  checked: boolean;
   items: InvoiceItem[];
 }
 

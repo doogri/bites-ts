@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchInvoices, addInvoice, updateItemUsage } from './api';
+import { fetchInvoices, addInvoice, updateItemUsage, checkInvoice, deleteInvoice } from './api';
 import type { Invoice, MonthGroup, Usage } from './types';
 
 const USAGE_OPTIONS: Usage[] = ['his', 'apartment', 'flatmate', 'friends', 'unknown'];
@@ -133,24 +133,54 @@ function UsageButtons({
 }
 
 function InvoiceCard({
-  invoice, onUsageChange,
+  invoice, onUsageChange, onCheck, onDelete,
 }: {
   invoice: Invoice;
   onUsageChange: (itemId: string, usage: Usage) => void;
+  onCheck: (invoiceId: string, checked: boolean) => void;
+  onDelete: (invoiceId: string) => void;
 }) {
   const d = new Date(invoice.invoiceDate);
   const dateStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const hebrewWeekday = new Intl.DateTimeFormat('he-IL', { weekday: 'long' }).format(d);
+  const hebrewCalDate = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { day: 'numeric', month: 'long' }).format(d);
   const unclassified = invoice.items.filter(i => i.usage === 'unknown').length;
 
   return (
-    <div className={`invoice-card${invoice.classified ? ' classified' : ''}`}>
+    <div className={`invoice-card${invoice.classified ? ' classified' : ''}${invoice.checked ? ' checked' : ''}`}>
       <div className="invoice-header">
         <span className="store-name">{invoice.storeName}</span>
-        <span className="invoice-date">{dateStr}</span>
+        <div className="invoice-date-block">
+          <span className="invoice-date">{dateStr}</span>
+          <span className="invoice-date-hebrew">{hebrewWeekday} · {hebrewCalDate}</span>
+        </div>
         {unclassified > 0 && (
           <span className="badge">{unclassified} left</span>
         )}
+        <a
+          className="invoice-link"
+          href={invoice.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={invoice.sourceUrl}
+        >↗</a>
         <span className="invoice-total">₪{Number(invoice.total).toFixed(0)}</span>
+        <button
+          className={`check-btn${invoice.checked ? ' active' : ''}`}
+          onClick={() => onCheck(invoice.id, !invoice.checked)}
+          title={invoice.checked ? 'Mark as unchecked' : 'Mark as checked'}
+        >✓</button>
+        <button
+          className="delete-btn"
+          onClick={() => {
+            if (window.confirm(`Delete ${invoice.storeName}?`)) onDelete(invoice.id);
+          }}
+          title="Delete invoice"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+          </svg>
+        </button>
       </div>
       <table className="items-table">
         <thead>
@@ -162,16 +192,27 @@ function InvoiceCard({
           </tr>
         </thead>
         <tbody>
-          {invoice.items.map(item => (
-            <tr key={item.id} className={item.usage === 'unknown' ? 'row-unknown' : ''}>
-              <td className="cell-name">{item.name}</td>
-              <td className="cell-qty">{item.quantity}</td>
-              <td className="cell-price">{Number(item.total).toFixed(2)}</td>
-              <td>
-                <UsageButtons itemId={item.id} current={item.usage} onChange={onUsageChange} />
-              </td>
-            </tr>
-          ))}
+          {invoice.items.map(item => {
+            const discount = Number(item.discount);
+            const gross = Number(item.total) - discount;
+            return (
+              <tr key={item.id} className={item.usage === 'unknown' ? 'row-unknown' : ''}>
+                <td className="cell-name">{item.name}</td>
+                <td className="cell-qty">{item.quantity}</td>
+                <td className="cell-price">
+                  {discount < 0 ? (
+                    <>
+                      <span className="price-gross">₪{gross.toFixed(2)}</span>
+                      <span className="price-discount">{discount.toFixed(2)}</span>
+                    </>
+                  ) : `₪${Number(item.total).toFixed(2)}`}
+                </td>
+                <td>
+                  <UsageButtons itemId={item.id} current={item.usage} onChange={onUsageChange} />
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -179,16 +220,19 @@ function InvoiceCard({
 }
 
 function MonthSection({
-  group, onUsageChange,
+  group, onUsageChange, onCheck, onDelete,
 }: {
   group: MonthGroup;
   onUsageChange: (itemId: string, usage: Usage) => void;
+  onCheck: (invoiceId: string, checked: boolean) => void;
+  onDelete: (invoiceId: string) => void;
 }) {
   const [open, setOpen] = useState(true);
   const unclassified = group.invoices.reduce(
     (n, inv) => n + inv.items.filter(i => i.usage === 'unknown').length,
     0,
   );
+  const checkedCount = group.invoices.filter(inv => inv.checked).length;
 
   return (
     <section className="month-section">
@@ -198,13 +242,14 @@ function MonthSection({
         <span className="month-meta">
           {group.invoices.length} invoice{group.invoices.length !== 1 ? 's' : ''}
           {unclassified > 0 && <span className="badge">{unclassified} left</span>}
+          {checkedCount > 0 && <span className="badge badge-checked">✓ {checkedCount}</span>}
         </span>
         <span className="month-total">₪{group.total.toFixed(0)}</span>
       </button>
       {open && (
         <div className="month-invoices">
           {group.invoices.map(inv => (
-            <InvoiceCard key={inv.id} invoice={inv} onUsageChange={onUsageChange} />
+            <InvoiceCard key={inv.id} invoice={inv} onUsageChange={onUsageChange} onCheck={onCheck} onDelete={onDelete} />
           ))}
         </div>
       )}
@@ -212,7 +257,7 @@ function MonthSection({
   );
 }
 
-function SummaryPanel({ invoices }: { invoices: Invoice[] }) {
+function SummaryPanel({ invoices, excludedCount }: { invoices: Invoice[]; excludedCount: number }) {
   const months = Array.from(
     new Set(invoices.map(inv => inv.invoiceDate.slice(0, 7)))
   ).sort((a, b) => b.localeCompare(a));
@@ -234,6 +279,9 @@ function SummaryPanel({ invoices }: { invoices: Invoice[] }) {
 
   return (
     <div className="summary-panel">
+      {excludedCount > 0 && (
+        <p className="summary-note">Excluding {excludedCount} checked invoice{excludedCount !== 1 ? 's' : ''}</p>
+      )}
       <table className="summary-table">
         <thead>
           <tr>
@@ -307,9 +355,21 @@ export default function App() {
     setInvoices(prev => [inv, ...prev]);
   };
 
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    setInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
+    await deleteInvoice(invoiceId);
+  };
+
+  const handleCheckInvoice = async (invoiceId: string, checked: boolean) => {
+    setInvoices(prev => prev.map(inv => inv.id === invoiceId ? { ...inv, checked } : inv));
+    await checkInvoice(invoiceId, checked);
+  };
+
   if (!authed) return <LoginGate onLogin={() => setAuthed(true)} />;
 
   const groups = groupByMonth(invoices);
+  const uncheckedInvoices = invoices.filter(inv => !inv.checked);
+  const checkedCount = invoices.length - uncheckedInvoices.length;
 
   return (
     <div className="app">
@@ -324,14 +384,14 @@ export default function App() {
           Summary
         </button>
       </header>
-      {showSummary && <SummaryPanel invoices={invoices} />}
+      {showSummary && <SummaryPanel invoices={uncheckedInvoices} excludedCount={checkedCount} />}
       <main className="main-content">
         {loading && <p className="status-msg">Loading...</p>}
         {!loading && groups.length === 0 && (
           <p className="status-msg">No invoices yet. Paste a URL above to add one.</p>
         )}
         {groups.map(group => (
-          <MonthSection key={group.month} group={group} onUsageChange={handleUsageChange} />
+          <MonthSection key={group.month} group={group} onUsageChange={handleUsageChange} onCheck={handleCheckInvoice} onDelete={handleDeleteInvoice} />
         ))}
       </main>
     </div>

@@ -38,3 +38,14 @@ export async function updateItemUsage(itemId: string, usage: Usage): Promise<voi
     body: JSON.stringify({ usage }),
   });
 }
+
+export async function deleteInvoice(invoiceId: string): Promise<void> {
+  await apiFetch(`/api/invoices/${invoiceId}`, { method: 'DELETE' });
+}
+
+export async function checkInvoice(invoiceId: string, checked: boolean): Promise<void> {
+  await apiFetch(`/api/invoices/${invoiceId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ checked }),
+  });
+}

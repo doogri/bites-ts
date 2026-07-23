@@ -229,6 +229,15 @@ button:disabled {
   opacity: 0.7;
 }
 
+.invoice-card.checked {
+  opacity: 0.45;
+}
+
+.invoice-card.checked .invoice-header {
+  text-decoration: line-through;
+  text-decoration-color: var(--text-muted);
+}
+
 .invoice-header {
   display: flex;
   align-items: center;
@@ -243,10 +252,35 @@ button:disabled {
   text-align: left;
 }
 
+.invoice-date-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  white-space: nowrap;
+}
+
 .invoice-date {
   color: var(--text-muted);
   font-size: 13px;
-  white-space: nowrap;
+}
+
+.invoice-date-hebrew {
+  color: var(--text-muted);
+  font-size: 11px;
+  direction: rtl;
+}
+
+.invoice-link {
+  color: var(--text-muted);
+  font-size: 13px;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.invoice-link:hover {
+  color: var(--accent);
 }
 
 .invoice-total {
@@ -296,6 +330,16 @@ tr.row-unknown:hover td {
   color: var(--text-muted);
   white-space: nowrap;
   text-align: right;
+}
+
+.price-gross {
+  display: block;
+}
+
+.price-discount {
+  display: block;
+  color: #f87171;
+  font-size: 11px;
 }
 
 /* ── Usage buttons ── */
@@ -399,6 +443,60 @@ tr.row-unknown:hover td {
 .col-flatmate  { color: var(--flatmate); }
 .col-friends   { color: var(--friends); }
 .col-unknown   { color: var(--text-muted); }
+
+/* ── Check button ── */
+.check-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.check-btn:hover {
+  border-color: #10b981;
+  color: #10b981;
+}
+
+.check-btn.active {
+  background: #10b981;
+  border-color: #10b981;
+  color: #fff;
+}
+
+.delete-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  border-radius: 4px;
+  padding: 3px 6px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: color 0.1s, border-color 0.1s;
+}
+
+.delete-btn:hover {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+/* ── Badge variants ── */
+.badge-checked {
+  background: #10b98122;
+  color: #10b981;
+}
+
+/* ── Summary note ── */
+.summary-note {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-bottom: 10px;
+}
 
 /* ── Misc ── */
 .error-msg {
