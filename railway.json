@@ -1,0 +1,9 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "buildCommand": "npm run build:all"
+  },
+  "deploy": {
+    "startCommand": "npm run typeorm migration:run -- -d ./dist/lib/data-source.js && node dist/index.js"
+  }
+}
