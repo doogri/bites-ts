@@ -12,6 +12,7 @@ export interface Item {
     name: string;
     price: number;
     total: number;
+    discount?: number;
     quantity?: number;
     index?: number;
     info?: string;
@@ -327,14 +328,29 @@ async function getRamiLevyInvoiceData(url: string): Promise<InvoiceItemWithMeta>
     const payments = doc['payments'] as Record<string, unknown>;
 
     const rawItems = doc['items'] as Record<string, unknown>[];
-    const items: Item[] = rawItems.map((item, index) => ({
-        id: String(item['code'] ?? index),
-        code: String(item['code'] ?? ''),
-        name: String(item['name'] ?? ''),
-        price: Number(item['price'] ?? 0),
-        total: Number(item['total'] ?? 0),
-        quantity: Number(item['quantity'] ?? 1) || 1,
-    }));
+    const items: Item[] = rawItems.map((item, index) => {
+        const additionalInfo = item['additional_info'] as { key: string; value: string }[] | null;
+        let discount = 0;
+        let uncertain = false;
+        if (Array.isArray(additionalInfo)) {
+            for (const entry of additionalInfo) {
+                const val = parseFloat(entry.value);
+                if (isNaN(val)) uncertain = true;
+                else discount += val;
+            }
+        }
+        const rawTotal = Number(item['total'] ?? 0);
+        const name = String(item['name'] ?? '');
+        return {
+            id: String(item['code'] ?? index),
+            code: String(item['code'] ?? ''),
+            name: uncertain ? `${name} [?]` : name,
+            price: Number(item['price'] ?? 0),
+            total: rawTotal + discount,
+            discount,
+            quantity: Number(item['quantity'] ?? 1) || 1,
+        };
+    });
 
     return {
         id,

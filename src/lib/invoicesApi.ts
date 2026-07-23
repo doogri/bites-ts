@@ -68,6 +68,7 @@ export function createInvoicesRouter(): Router {
                 name: item.name,
                 price: item.price ?? 0,
                 total: item.total ?? 0,
+                discount: item.discount ?? 0,
                 quantity: item.quantity ?? 1,
                 usage: 'unknown',
                 invoiceId: invoice.id,
@@ -82,6 +83,47 @@ export function createInvoicesRouter(): Router {
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
             res.status(500).json({ error: message });
+        }
+    });
+
+    router.delete('/invoices/:id', async (req: Request, res: Response) => {
+        const { id } = req.params;
+        try {
+            const invoiceRepo = AppDataSource.getRepository(Invoice);
+            const invoice = await invoiceRepo.findOne({ where: { id }, relations: ['items'] });
+            if (!invoice) {
+                res.status(404).json({ error: 'Invoice not found' });
+                return;
+            }
+            await AppDataSource.getRepository(InvoiceItem).delete({ invoiceId: id });
+            await invoiceRepo.delete(id);
+            res.status(204).send();
+        } catch {
+            res.status(500).json({ error: 'Failed to delete invoice' });
+        }
+    });
+
+    router.patch('/invoices/:id', async (req: Request, res: Response) => {
+        const { id } = req.params;
+        const { checked } = req.body as { checked?: boolean };
+
+        if (typeof checked !== 'boolean') {
+            res.status(400).json({ error: 'Invalid checked value' });
+            return;
+        }
+
+        try {
+            const invoiceRepo = AppDataSource.getRepository(Invoice);
+            const invoice = await invoiceRepo.findOneBy({ id });
+            if (!invoice) {
+                res.status(404).json({ error: 'Invoice not found' });
+                return;
+            }
+            invoice.checked = checked;
+            await invoiceRepo.save(invoice);
+            res.json(invoice);
+        } catch {
+            res.status(500).json({ error: 'Failed to update invoice' });
         }
     });
 
