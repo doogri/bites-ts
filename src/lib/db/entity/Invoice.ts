@@ -24,6 +24,9 @@ export class Invoice {
   @Column({ default: false })
   classified!: boolean;
 
+  @Column({ default: false })
+  checked!: boolean;
+
   @OneToMany(() => InvoiceItem, (item) => item.invoice)
   items!: InvoiceItem[];
 

@@ -15,6 +15,9 @@ export class InvoiceItem {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   total!: number;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  discount!: number;
+
   @Column({ type: 'float', default: 1 })
   quantity!: number;
 
