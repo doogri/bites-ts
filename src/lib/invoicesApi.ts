@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { AppDataSource } from './data-source.js';
 import { Invoice } from './db/entity/Invoice.js';
 import { InvoiceItem } from './db/entity/InvoiceItem.js';
-import { getInvoiceDataFromUrl, isSupportedInvoiceLink } from './invoicesBot.js';
+import { getInvoiceDataFromUrl, isSupportedInvoiceLink, Item } from './invoicesBot.js';
 
 const VALID_USAGES = ['his', 'apartment', 'flatmate', 'friends', 'unknown'] as const;
 
@@ -32,6 +32,58 @@ export function createInvoicesRouter(): Router {
             res.json(invoices);
         } catch {
             res.status(500).json({ error: 'Failed to fetch invoices' });
+        }
+    });
+
+    router.post('/invoices/import', async (req: Request, res: Response) => {
+        const body = req.body as {
+            id?: string;
+            storeName?: string;
+            createdDate?: string;
+            items?: Item[];
+            sourceUrl?: string;
+        };
+
+        if (!body.id || !body.storeName || !body.createdDate || !Array.isArray(body.items) || !body.sourceUrl) {
+            res.status(400).json({ error: 'Missing required fields: id, storeName, createdDate, items, sourceUrl' });
+            return;
+        }
+
+        try {
+            const invoiceRepo = AppDataSource.getRepository(Invoice);
+            const existing = await invoiceRepo.findOneBy({ externalId: body.id });
+            if (existing) {
+                res.status(409).json({ error: 'Invoice already exists' });
+                return;
+            }
+
+            const invoice = invoiceRepo.create({
+                externalId: body.id,
+                storeName: body.storeName,
+                invoiceDate: new Date(body.createdDate),
+                total: body.items.reduce((sum, item) => sum + (item.total ?? 0), 0),
+                sourceUrl: body.sourceUrl,
+                classified: false,
+            });
+            await invoiceRepo.save(invoice);
+
+            const itemRepo = AppDataSource.getRepository(InvoiceItem);
+            const items = body.items.map(item => itemRepo.create({
+                name: item.name,
+                price: item.price ?? 0,
+                total: item.total ?? 0,
+                discount: item.discount ?? 0,
+                quantity: item.quantity ?? 1,
+                usage: 'unknown',
+                invoiceId: invoice.id,
+            }));
+            await itemRepo.save(items);
+
+            const saved = await invoiceRepo.findOne({ where: { id: invoice.id }, relations: ['items'] });
+            res.status(201).json(saved);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            res.status(500).json({ error: message });
         }
     });
 

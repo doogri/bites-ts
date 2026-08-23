@@ -9,6 +9,7 @@
     "build:all": "npm run build && npm run build:client",
     "invoice:cli": "npm run build && node dist/lib/invoicesCli.js",
     "invoice:month": "npm run build && node dist/lib/invoicesMonthSummary.js",
+    "invoice:push": "npm run build && node dist/lib/invoicePush.js",
     "postinstall": "tsc",
     "prestart": "fuser -k 3000/tcp || true",
     "start": "npm run migration:run && node dist/index.js",
