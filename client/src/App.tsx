@@ -146,6 +146,13 @@ function InvoiceCard({
   const hebrewCalDate = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { day: 'numeric', month: 'long' }).format(d);
   const unclassified = invoice.items.filter(i => i.usage === 'unknown').length;
 
+  const usageTotals: Record<Usage, number> = {
+    his: 0, apartment: 0, flatmate: 0, friends: 0, unknown: 0,
+  };
+  for (const item of invoice.items) {
+    usageTotals[item.usage] += Number(item.total);
+  }
+
   return (
     <div className={`invoice-card${invoice.classified ? ' classified' : ''}${invoice.checked ? ' checked' : ''}`}>
       <div className="invoice-header">
@@ -214,6 +221,19 @@ function InvoiceCard({
             );
           })}
         </tbody>
+        <tfoot>
+          <tr className="items-summary-row">
+            <td colSpan={4}>
+              <div className="usage-summary-strip">
+                {USAGE_OPTIONS.map(u => (
+                  <span key={u} className={`usage-summary-chip col-${u}`}>
+                    {USAGE_LABELS[u]}: {usageTotals[u] ? `₪${usageTotals[u].toFixed(2)}` : '—'}
+                  </span>
+                ))}
+              </div>
+            </td>
+          </tr>
+        </tfoot>
       </table>
     </div>
   );
