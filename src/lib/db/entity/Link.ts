@@ -9,6 +9,9 @@ export class Link {
   @Column({ length: 1000, nullable: true })
   link!: string;
 
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  title!: string | null;
+
   @Column({ nullable: false })
   sent: boolean = false;
 

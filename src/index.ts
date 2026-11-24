@@ -1,3 +1,4 @@
+import { linkLabel } from './lib/linkTitle.js';
 import TelegramBot, { CallbackQuery, Message, WebHookOptions } from 'node-telegram-bot-api';
 import { extractArticle } from './lib/crawl.js';
 import { fromTextToParagraphes, htmlToListOfParagraphs } from './lib/htmlToText.js';
@@ -99,7 +100,7 @@ async function initTelegramBotManager() {
             return;
         }
 
-        const keyboards = unreadLinks.map((link: Link) => [{text: link.link, callback_data: link.id}]);
+        const keyboards = unreadLinks.map((link: Link) => [{text: linkLabel(link), callback_data: link.id}]);
 
         const options: TelegramBot.SendMessageOptions = {
             reply_markup: {

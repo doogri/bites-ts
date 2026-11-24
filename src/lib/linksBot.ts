@@ -1,3 +1,4 @@
+import { linkLabel, fetchLinkTitle } from './linkTitle.js';
 import TelegramBot, { Message, WebHookOptions } from "node-telegram-bot-api";
 import { User } from "./db/entity/User.js";
 import { AppDataSource } from "./data-source.js";
@@ -66,7 +67,7 @@ export async function initTelegramBotManager() {
             return;
         }
 
-        const keyboards = unreadLinks.map((link: Link) => [{text: link.link, callback_data: link.id}]);
+        const keyboards = unreadLinks.map((link: Link) => [{text: linkLabel(link), callback_data: link.id}]);
 
         const options: TelegramBot.SendMessageOptions = {
             reply_markup: {
@@ -137,6 +138,7 @@ export async function initTelegramBotManager() {
         const link = new Link();
         link.link = validLink;
         link.userId = user.id;
+        link.title = await fetchLinkTitle(validLink) ?? null;
 
         const linkRepository = AppDataSource.getRepository(Link);
         // todo - if user already exist - just say hi
@@ -144,7 +146,7 @@ export async function initTelegramBotManager() {
 
 
 
-        bot.sendMessage(chatId, 'link was stored successfully');
+        bot.sendMessage(chatId, link.title ? `link was stored successfully: ${link.title}` : 'link was stored successfully');
     });
 }
 
