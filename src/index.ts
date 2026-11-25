@@ -1,4 +1,4 @@
-import { linkLabel } from './lib/linkTitle.js';
+import { buildLinkListMessage } from './lib/linkTitle.js';
 import TelegramBot, { CallbackQuery, Message, WebHookOptions } from 'node-telegram-bot-api';
 import { extractArticle } from './lib/crawl.js';
 import { fromTextToParagraphes, htmlToListOfParagraphs } from './lib/htmlToText.js';
@@ -100,15 +100,8 @@ async function initTelegramBotManager() {
             return;
         }
 
-        const keyboards = unreadLinks.map((link: Link) => [{text: linkLabel(link), callback_data: link.id}]);
-
-        const options: TelegramBot.SendMessageOptions = {
-            reply_markup: {
-              inline_keyboard: [...keyboards]
-            }
-          };
-        
-        bot.sendMessage(chatId, 'Unread links:', options);
+        const { text, options } = buildLinkListMessage('Unread links:', unreadLinks);
+        bot.sendMessage(chatId, text, options);
     });
 
     bot.on('error', (error) => {

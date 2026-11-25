@@ -1,4 +1,4 @@
-import { linkLabel } from './linkTitle.js';
+import { buildLinkListMessage } from './linkTitle.js';
 import TelegramBot from "node-telegram-bot-api";
 import { AppDataSource } from "./data-source.js";
 import { Link } from "./db/entity/Link.js";
@@ -28,13 +28,6 @@ export async function sendSuggestions(bot: TelegramBot, chatId: number,  userTel
         return;
     }
 
-    const keyboards = links.map((link: Link)=> [{text: linkLabel(link), callback_data: link.id}]);
-
-    const options: TelegramBot.SendMessageOptions = {
-        reply_markup: {
-          inline_keyboard: [...keyboards]
-        }
-      };
-    
-      bot.sendMessage(chatId, 'Please select an option:', options);
+    const { text, options } = buildLinkListMessage('Please select an option:', links);
+        bot.sendMessage(chatId, text, options);
 }

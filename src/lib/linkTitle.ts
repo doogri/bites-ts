@@ -1,9 +1,9 @@
+import type TelegramBot from 'node-telegram-bot-api';
 import { extractArticle } from './crawl.js';
 import type { Link } from './db/entity/Link.js';
 
 const TITLE_FETCH_TIMEOUT_MS = 10_000;
 const MAX_TITLE_LENGTH = 500;
-const MAX_BUTTON_TITLE_LENGTH = 60;
 
 /** Fetches the article title for a URL. Returns undefined on failure/timeout. */
 export async function fetchLinkTitle(url: string): Promise<string | undefined> {
@@ -26,11 +26,43 @@ export function linkDomain(url: string): string {
     }
 }
 
-/** Button label: "Title (domain)", or the raw URL when no title is stored. */
+/** Full label: "Title (domain)", or the raw URL when no title is stored. */
 export function linkLabel(link: Link): string {
     if (!link.title) return link.link;
-    const title = link.title.length > MAX_BUTTON_TITLE_LENGTH
-        ? link.title.substring(0, MAX_BUTTON_TITLE_LENGTH - 1) + '…'
-        : link.title;
-    return `${title} (${linkDomain(link.link)})`;
+    return `${link.title} (${linkDomain(link.link)})`;
+}
+
+const MAX_MESSAGE_LENGTH = 4000; // Telegram limit is 4096
+const BUTTONS_PER_ROW = 5;
+
+/**
+ * Builds a link-selection message: full labels as a numbered list in the text
+ * (Telegram buttons are single-line and get truncated), plus numbered buttons.
+ * Links that don't fit in one message are left out and counted at the end.
+ */
+export function buildLinkListMessage(header: string, links: Link[]): { text: string, options: TelegramBot.SendMessageOptions } {
+    const lines: string[] = [];
+    const buttons: TelegramBot.InlineKeyboardButton[] = [];
+    let length = header.length;
+
+    for (const [i, link] of links.entries()) {
+        const line = `${i + 1}. ${linkLabel(link)}`;
+        if (length + line.length + 2 > MAX_MESSAGE_LENGTH - 30) break;
+        lines.push(line);
+        buttons.push({ text: String(i + 1), callback_data: link.id });
+        length += line.length + 2;
+    }
+
+    const omitted = links.length - lines.length;
+    if (omitted > 0) lines.push(`…and ${omitted} more`);
+
+    const keyboard: TelegramBot.InlineKeyboardButton[][] = [];
+    for (let i = 0; i < buttons.length; i += BUTTONS_PER_ROW) {
+        keyboard.push(buttons.slice(i, i + BUTTONS_PER_ROW));
+    }
+
+    return {
+        text: `${header}\n\n${lines.join('\n\n')}`,
+        options: { reply_markup: { inline_keyboard: keyboard }, disable_web_page_preview: true },
+    };
 }
