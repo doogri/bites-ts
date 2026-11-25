@@ -1,4 +1,4 @@
-import { buildLinkListMessage } from './lib/linkTitle.js';
+import { buildLinkListMessage, buildSaveLinksKeyboard, extractUrls, fetchLinkTitle, linkDomain, SAVE_LINK_PREFIX } from './lib/linkTitle.js';
 import TelegramBot, { CallbackQuery, Message, WebHookOptions } from 'node-telegram-bot-api';
 import { extractArticle } from './lib/crawl.js';
 import { fromTextToParagraphes, htmlToListOfParagraphs } from './lib/htmlToText.js';
@@ -163,6 +163,11 @@ async function initTelegramBotManager() {
             return;
         }
 
+        if (data.startsWith(SAVE_LINK_PREFIX)) {
+            await handleSaveLink(bot, callbackQuery, message, Number(data.slice(SAVE_LINK_PREFIX.length)));
+            return;
+        }
+
         if (data.startsWith(RECOMMEND_PREFIX)) {
             await handleRecommend(bot, callbackQuery, message, data.slice(RECOMMEND_PREFIX.length));
             return;
@@ -244,6 +249,52 @@ async function findOrCreateLinkId(telegramUserId: number, url: string, title?: s
     }
 }
 
+/** Saves the index-th URL of an article paragraph message as an unread link for the user. */
+async function handleSaveLink(bot: TelegramBot, query: CallbackQuery, message: Message, index: number) {
+    const answer = (text: string) => bot.answerCallbackQuery(query.id, { text }).catch((e) => console.error(`answerCallbackQuery failed: ${e}`));
+
+    const urls = extractUrls(message.text ?? '');
+    const url = urls[index];
+    if (!url) {
+        await answer('Link not found in this message');
+        return;
+    }
+
+    try {
+        const userRepository = AppDataSource.getRepository(User);
+        const user = await userRepository.findOne({ where: { telegramId: query.from.id } });
+        if (!user) {
+            await answer('I do not know you yet. Send /start to the links bot first.');
+            return;
+        }
+
+        const linkRepository = AppDataSource.getRepository(Link);
+        const exists = await linkRepository.exists({ where: { userId: user.id, link: url } });
+        if (!exists) {
+            const link = new Link();
+            link.link = url.substring(0, 999);
+            link.userId = user.id;
+            link.title = await fetchLinkTitle(url) ?? null;
+            await linkRepository.save(link);
+            await answer(link.title ? `Saved: ${link.title}` : 'Saved');
+        } else {
+            await answer('Already saved');
+        }
+
+        // mark the pressed button as saved, keep the others
+        const keyboard = message.reply_markup?.inline_keyboard;
+        if (keyboard) {
+            const updated = keyboard.map((row) => row.map((btn) =>
+                btn.callback_data === `${SAVE_LINK_PREFIX}${index}` ? { ...btn, text: `✅ ${linkDomain(url)}` } : btn));
+            await bot.editMessageReplyMarkup({ inline_keyboard: updated }, { chat_id: message.chat.id, message_id: message.message_id })
+                .catch((e) => console.error(`editMessageReplyMarkup failed: ${e}`));
+        }
+    } catch (error) {
+        console.error(`failed to save link ${url}: ${error}`);
+        await answer('Failed to save link. See logs');
+    }
+}
+
 // https://stackoverflow.com/a/76933672
 function escapeMarkdown(text: string): string {
     return text.replace(/[_*[\]()~`>#\+\-=|{}.!]/g, '\\$&'); 
@@ -280,7 +331,8 @@ async function sendBack(title: string, paragraphs: string[], bot: TelegramBot, c
         for (const p of paragraphs) {
             await sleep(1);
             console.log(`length of paragrph to send: ${p.length}`);
-            await bot.sendMessage(chatId, p);
+            const keyboard = buildSaveLinksKeyboard(extractUrls(p));
+            await bot.sendMessage(chatId, p, keyboard ? { reply_markup: keyboard } : undefined);
         }
 
         if (linkId) {

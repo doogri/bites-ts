@@ -1,4 +1,5 @@
 import type TelegramBot from 'node-telegram-bot-api';
+import validator from 'validator';
 import { extractArticle } from './crawl.js';
 import type { Link } from './db/entity/Link.js';
 
@@ -64,5 +65,41 @@ export function buildLinkListMessage(header: string, links: Link[]): { text: str
     return {
         text: `${header}\n\n${lines.join('\n\n')}`,
         options: { reply_markup: { inline_keyboard: keyboard }, disable_web_page_preview: true },
+    };
+}
+
+const MAX_SAVE_BUTTONS = 5;
+const IMAGE_EXT_RE = /\.(jpe?g|png|gif|webp|svg|bmp|avif|ico)$/i;
+const URL_RE = /https?:\/\/[^\s\[\]<>"']+/g;
+
+/**
+ * Extracts saveable URLs from a message text, in order of appearance.
+ * Skips images (Telegram previews them; no need to store) and duplicates.
+ * Deterministic, so a callback can re-run it on the message text and pick by index.
+ */
+export function extractUrls(text: string): string[] {
+    const urls: string[] = [];
+    for (const match of text.matchAll(URL_RE)) {
+        const url = match[0].replace(/[.,;:!?)]+$/, '');
+        if (urls.includes(url)) continue;
+        if (!validator.isURL(url, { protocols: ['http', 'https'], require_protocol: true })) continue;
+        try {
+            if (IMAGE_EXT_RE.test(new URL(url).pathname)) continue;
+        } catch {
+            continue;
+        }
+        urls.push(url);
+        if (urls.length >= MAX_SAVE_BUTTONS) break;
+    }
+    return urls;
+}
+
+export const SAVE_LINK_PREFIX = 'save:';
+
+/** Inline keyboard with one "save" button per URL (one per row), or undefined if none. */
+export function buildSaveLinksKeyboard(urls: string[]): TelegramBot.InlineKeyboardMarkup | undefined {
+    if (urls.length === 0) return undefined;
+    return {
+        inline_keyboard: urls.map((url, i) => [{ text: `💾 ${linkDomain(url)}`, callback_data: `${SAVE_LINK_PREFIX}${i}` }]),
     };
 }
