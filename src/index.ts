@@ -125,6 +125,11 @@ async function initTelegramBotManager() {
             return;
         }
 
+        if (msg.text?.startsWith('/')) {
+            // commands (/start, /list) are handled by their own onText handlers
+            return;
+        }
+
         bot.sendMessage(chatId, 'reading... better you get out now');
         
         if (msg.document) {
