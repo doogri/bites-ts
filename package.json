@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.ts",
+  "engines": {
+    "node": ">=24.22.3 <25"
+  },
   "scripts": {
     "build": "tsc",
     "build:client": "(cd client && npm install && npm run build)",
