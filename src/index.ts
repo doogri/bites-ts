@@ -139,7 +139,10 @@ async function initTelegramBotManager() {
         }
         else {
             const article = await extractArticle(msg.text!);
-            await sendBackArticle(bot, chatId, article);
+            const linkId = article && user
+                ? await findOrCreateLinkId(user.id, msg.text!, article.title)
+                : undefined;
+            await sendBackArticle(bot, chatId, article, linkId);
             if (user) {
                 await sendSuggestions(bot, chatId, user);
             }
@@ -155,6 +158,16 @@ async function initTelegramBotManager() {
             return;
         }
 
+        if (data === 'noop') {
+            await bot.answerCallbackQuery(callbackQuery.id);
+            return;
+        }
+
+        if (data.startsWith(RECOMMEND_PREFIX)) {
+            await handleRecommend(bot, callbackQuery, message, data.slice(RECOMMEND_PREFIX.length));
+            return;
+        }
+
         bot.sendMessage(message.chat.id, 'reading... better you get out now');
 
              
@@ -167,8 +180,8 @@ async function initTelegramBotManager() {
         console.log('the link: ' + link);
         
         const article = await extractArticle(link);
-        await sendBackArticle(bot, message.chat.id, article);
-        
+        await sendBackArticle(bot, message.chat.id, article, linkRecord.id);
+
         linkRecord.sent = true;
         await linkRepository.save(linkRecord);
 
@@ -180,12 +193,63 @@ async function initTelegramBotManager() {
       });
 }
 
+const RECOMMEND_PREFIX = 'rec:';
+
+async function handleRecommend(bot: TelegramBot, callbackQuery: CallbackQuery, message: Message, linkId: string) {
+    try {
+        const linkRepository = AppDataSource.getRepository(Link);
+        const linkRecord = await linkRepository.findOneBy({ id: linkId });
+        if (!linkRecord) {
+            await bot.answerCallbackQuery(callbackQuery.id, { text: 'Link not found' });
+            return;
+        }
+        linkRecord.recommended = true;
+        await linkRepository.save(linkRecord);
+
+        await bot.answerCallbackQuery(callbackQuery.id, { text: 'Recommended 👍' });
+        await bot.editMessageReplyMarkup(
+            { inline_keyboard: [[{ text: '✅ Recommended', callback_data: 'noop' }]] },
+            { chat_id: message.chat.id, message_id: message.message_id },
+        );
+    } catch (error) {
+        console.error(`failed to mark link ${linkId} as recommended: ${error}`);
+        await bot.answerCallbackQuery(callbackQuery.id, { text: 'Failed to save, see logs' }).catch(() => {});
+    }
+}
+
+/** Find the user's Link row for a pasted URL, creating it if missing, so the article can be recommended. */
+async function findOrCreateLinkId(telegramUserId: number, url: string, title?: string): Promise<string | undefined> {
+    try {
+        const user = await AppDataSource.getRepository(User).findOne({ where: { telegramId: telegramUserId } });
+        if (!user) {
+            return undefined;
+        }
+        const linkRepository = AppDataSource.getRepository(Link);
+        const trimmedUrl = url.trim().substring(0, 999);
+        const existing = await linkRepository.findOneBy({ userId: user.id, link: trimmedUrl });
+        if (existing) {
+            return existing.id;
+        }
+        const link = new Link();
+        link.link = trimmedUrl;
+        link.userId = user.id;
+        link.title = title ? title.substring(0, 500) : null;
+        link.sent = true;
+        link.sentAt = new Date();
+        const saved = await linkRepository.save(link);
+        return saved.id;
+    } catch (error) {
+        console.error(`failed to find/create link for ${url}: ${error}`);
+        return undefined;
+    }
+}
+
 // https://stackoverflow.com/a/76933672
 function escapeMarkdown(text: string): string {
     return text.replace(/[_*[\]()~`>#\+\-=|{}.!]/g, '\\$&'); 
 }
 
-async function sendBackArticle(bot: TelegramBot, chatId: number, article: void | { content?: string; title?: string; }){  
+async function sendBackArticle(bot: TelegramBot, chatId: number, article: void | { content?: string; title?: string; }, linkId?: string){  
     if (!article || !article.content || !article.title) {
         bot.sendMessage(chatId, 'no response');
         return;
@@ -194,7 +258,7 @@ async function sendBackArticle(bot: TelegramBot, chatId: number, article: void |
     try {
         const title = article.title;
         const paragraphs = htmlToListOfParagraphs(article.content);
-        await sendBack(title, paragraphs, bot, chatId);
+        await sendBack(title, paragraphs, bot, chatId, linkId);
        
         
     } catch (error) {
@@ -203,7 +267,7 @@ async function sendBackArticle(bot: TelegramBot, chatId: number, article: void |
     }
 }
 
-async function sendBack(title: string, paragraphs: string[], bot: TelegramBot, chatId: number) {
+async function sendBack(title: string, paragraphs: string[], bot: TelegramBot, chatId: number, linkId?: string) {
     try {
         // https://core.telegram.org/bots/api#html-style
         const options: TelegramBot.SendMessageOptions = { parse_mode: 'MarkdownV2' };
@@ -217,6 +281,14 @@ async function sendBack(title: string, paragraphs: string[], bot: TelegramBot, c
             await sleep(1);
             console.log(`length of paragrph to send: ${p.length}`);
             await bot.sendMessage(chatId, p);
+        }
+
+        if (linkId) {
+            await bot.sendMessage(chatId, 'Liked it?', {
+                reply_markup: {
+                    inline_keyboard: [[{ text: '👍 Recommend', callback_data: RECOMMEND_PREFIX + linkId }]],
+                },
+            });
         }
     } catch (error) {
         console.log(`failed to send messages to telegram: ${error}`);

@@ -18,6 +18,9 @@ export class Link {
   @Column({ nullable: true })
   sentAt!: Date;
 
+  @Column({ default: false })
+  recommended: boolean = false;
+
   @ManyToOne(() => User.User, (user) => user.links)
   @JoinColumn({ name: "userId" })
   user: User.User | undefined;
